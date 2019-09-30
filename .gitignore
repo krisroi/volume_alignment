@@ -11,5 +11,6 @@ __pycache__/
 # Virtualenv
 /venv/
 
+
 # Project specific
 **.DS_Store
