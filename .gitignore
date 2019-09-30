@@ -1,0 +1,15 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# Jupyter notebook
+.ipynb_checkpoints
+
+
+# Virtualenv
+/venv/
+
+# Project specific
+**.DS_Store
