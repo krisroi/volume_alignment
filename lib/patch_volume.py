@@ -20,21 +20,22 @@ def create_patches(data, patch_size, stride):
     N = data_size[0]
 
     start = time.time() * 1
-    for i in range(N):
+    for i in range(N - 1):
+        print(i)
         flat_idx = util.calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
         flat_idx_select = torch.zeros(flat_idx.size())
 
         for patch_idx in range(1, flat_idx.size()[0]):
             patch_pos = util.idx2pos_4D(flat_idx[patch_idx], data_size[1:])
 
-            moving_patch = data.data[i - 1,
-                                     patch_pos[1]:patch_pos[1] + patch_size,
-                                     patch_pos[2]:patch_pos[2] + patch_size,
-                                     patch_pos[3]:patch_pos[3] + patch_size]
             fixed_patch = data.data[i,
                                     patch_pos[1]:patch_pos[1] + patch_size,
                                     patch_pos[2]:patch_pos[2] + patch_size,
                                     patch_pos[3]:patch_pos[3] + patch_size]
+            moving_patch = data.data[i + 1,
+                                     patch_pos[1]:patch_pos[1] + patch_size,
+                                     patch_pos[2]:patch_pos[2] + patch_size,
+                                     patch_pos[3]:patch_pos[3] + patch_size]
 
             if (torch.sum(moving_patch) + torch.sum(fixed_patch) != 0):
                 flat_idx_select[patch_idx] = 1
@@ -47,11 +48,11 @@ def create_patches(data, patch_size, stride):
 
         for slices in range(flat_idx.shape[0]):
             patch_pos = util.idx2pos_4D(flat_idx[slices], data_size[1:])
-            input_batch[slices, 0] = data.data[i - 1,
+            input_batch[slices, 0] = data.data[i,
                                                patch_pos[1]:patch_pos[1] + patch_size,
                                                patch_pos[2]:patch_pos[2] + patch_size,
                                                patch_pos[3]:patch_pos[3] + patch_size]
-            input_batch[slices, 1] = data.data[i,
+            input_batch[slices, 1] = data.data[i + 1,
                                                patch_pos[1]:patch_pos[1] + patch_size,
                                                patch_pos[2]:patch_pos[2] + patch_size,
                                                patch_pos[3]:patch_pos[3] + patch_size]
