@@ -1,4 +1,4 @@
-import lib.get_patch_pos as util
+import get_patch_pos as util
 import time
 import torch
 from torch.nn import functional as F
