@@ -21,7 +21,6 @@ def create_patches(data, patch_size, stride):
 
     start = time.time() * 1
     for i in range(N - 1):
-        print(i)
         flat_idx = util.calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
         flat_idx_select = torch.zeros(flat_idx.size())
 
@@ -59,6 +58,6 @@ def create_patches(data, patch_size, stride):
         # end for
     # end for
     stop = time.time() * 1
-    print(stop - start)
+    #print(stop - start)
 
     return input_batch

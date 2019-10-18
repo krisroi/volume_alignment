@@ -1,4 +1,4 @@
-from lib.HDF5Image import load_hdf5
+from lib.HDF5Image import HDF5Image
 import lib.utils as ut
 from lib.patch_volume import create_patches
 import lib.network as network
@@ -6,31 +6,29 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-fixed_file = 'J249J70K_proc.h5'
-moving_file = 'J249J70M_proc.h5'
+PROJ_ROOT = '/users/kristofferroise/project'
+patient_group = 'patient_data/gr5_STolav5to8'
+patient = 'p7_3d'
+fixfile = 'J249J70K_proc.h5'
+movfile = 'J249J70M_proc.h5'
+fixvol_no = 'vol01'
+movvol_no = 'vol02'
 
-data, shape = load_hdf5(fixed_file, moving_file)
+image = HDF5Image(PROJ_ROOT, patient_group, patient,
+                  fixfile, movfile,
+                  fixvol_no, movvol_no)
+print(image.data.shape)
+fixed = image.data[0, :].unsqueeze(0)
+moving = image.data[1:2, :]
 
-data_norm = ut.normalize_pixels(data)
+print(fixed.shape)
 
-#ut.show_single(data_norm[0:], data_norm[0:].shape)
+#data_norm = ut.normalize_pixels(image.data)
 
 stride = 20
 patch_size = 20
 
-input_batch = create_patches(data_norm, patch_size, stride)
-print(input_batch.shape)
+input_batch = create_patches(image.data, patch_size, stride)
 
-#ut.show_single(input_batch[239, 1:], input_batch[230, 1:].shape)
-net = network.Net()
-print(net)
-
-
-# input = torch.randn(1, 1, 20, 20, 20)  # Random input
-input = input_batch[240:245, 1:]  # Real data input
-out = net(input)
-print(out)
-print(out.shape)
-
-#criterion = nn.CrossEntropyLoss()
-#optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+single = input_batch[250, 0:]
+ut.show_single(single, single.shape)
