@@ -18,10 +18,11 @@ def normalized_cross_correlation(fixed_image, warped_image, patch=True):
         fixed_image: the image in which to compare to the transformed image
         patch: temporary boolean to decide if the correlation should be done on patches or not (TRUE by default)
     Returns:
-        a floating number as defined by either 1 - ncc or -ncc (defined in the return statement)
+        a floating (tensor of) number(s) as defined by either 1 - ncc or -ncc (defined in the return statement)
+        tensor of numbers if patch, single number if full image
     """
     if patch:
-        fixed_image = fixed_image.unsqueeze(1)  # Adding channel and batch dimension
+        fixed_image = fixed_image.unsqueeze(1)  # Adding channel dimension
     else:
         fixed_image = fixed_image.unsqueeze(0).unsqueeze(1)  # Adding channel and batch dimension
 
@@ -34,7 +35,9 @@ def normalized_cross_correlation(fixed_image, warped_image, patch=True):
     num = torch.sum(torch.mul(fixed, warped), (2, 3, 4))
     den = torch.mul(fixed_var, warped_var)
 
-    alpha = 0.0000001
+    alpha = 1.0e-16  # small number to prevent zero-division
     ncc = torch.div(num, (den + alpha))
+
+    ncc = torch.mean(ncc)
 
     return 1 - ncc  # Try experimenting with 1 - NCC and -NCC
