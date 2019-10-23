@@ -1,4 +1,4 @@
-import get_patch_pos as util
+import lib.get_patch_pos as util
 import time
 import torch
 from torch.nn import functional as F
@@ -36,8 +36,12 @@ def create_patches(data, patch_size, stride):
                                      patch_pos[2]:patch_pos[2] + patch_size,
                                      patch_pos[3]:patch_pos[3] + patch_size]
 
-            if (torch.sum(moving_patch) + torch.sum(fixed_patch) != 0):
+            if (torch.mean(torch.sum(moving_patch) + torch.sum(fixed_patch)) >= 3000):
                 flat_idx_select[patch_idx] = 1
+                #print(torch.mean(torch.sum(moving_patch) + torch.sum(fixed_patch)))
+
+            # if (torch.sum(moving_patch) + torch.sum(fixed_patch) != 0):
+            #   flat_idx_select[patch_idx] = 1
             # end if
         # end for
         flat_idx_select = flat_idx_select.bool()
@@ -58,6 +62,6 @@ def create_patches(data, patch_size, stride):
         # end for
     # end for
     stop = time.time() * 1
-    #print(stop - start)
+    # print(stop - start)
 
     return input_batch
