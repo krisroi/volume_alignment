@@ -5,6 +5,7 @@ import lib.affine as A
 from lib.HDF5Image import HDF5Image
 from lib.patch_volume import create_patches
 import numpy as np
+import math
 from lib.ncc_loss import NCC
 import lib.utils as ut
 
@@ -17,33 +18,47 @@ def train_network(fixed_image, warped_image, learning_rate, epochs):
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     print('Fixed shape: {} \t Warped shape: {}'.format(fixed_image.shape, warped_image.shape))
 
-    N = int(fixed_image.shape[0] / 32)
+    # loss_val = torch.zeros(fixed_image.shape[0])
 
     for epoch in range(epochs):
 
-        for idx in range(fixed_image.shape[0] - 64):
+        for idx in range(1, fixed_image.shape[0]):
 
             optimizer.zero_grad()  # Zeroing the gradients
 
             # Perform forward pass on moving pathces
-            predicted_theta = net(warped_image[idx:idx + 63, :])
+            predicted_theta = net(warped_image[idx, :].unsqueeze(0))
             predicted_deform = A.affine_transform(warped_image, predicted_theta, patch=True)
 
-            #print('Predicted deformation shape: ', predicted_deform.shape)
-            #ut.show_single(predicted_deform[0, :].detach().numpy(), predicted_deform[0, :].shape)
-            #ut.show_single(fixed[patch, :].unsqueeze(0), fixed.shape)
+            # print('Predicted deformation shape: ', predicted_deform.shape)
+            #ut.show_single(fixed_image[idx, :].unsqueeze(0), fixed_image[idx, :].unsqueeze(0).shape, title='Fixed image')
+            #ut.show_single(warped_image[idx, :], warped_image[idx, :].shape, title='Warped image')
+            #ut.show_single(predicted_deform[idx, :].detach().numpy(), predicted_deform[idx, :].shape, title='Predicted deformation')
 
-            loss = criterion(fixed_image[idx, :].unsqueeze(0),
-                             predicted_deform[idx, :].unsqueeze(0), patch=True)
+            loss = criterion(fixed_image, predicted_deform, patch=True)
             loss.backward()
             loss_val = loss.item()
 
             optimizer.step()
 
-            if idx % 50 == 0:
-                print('====> Epoch: {} #\t Loss: {}'.format(epoch, loss_val))
+            if idx % 20 == 0:
+                print('====> Epoch: {}/{} \t Loss: {} \t Patch: {}/{} \t Predicted theta: \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {} \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {} \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {}'
+                      .format(epoch + 1, epochs, np.round(loss_val, 4), idx, fixed_image.shape[0],
+                              np.round(predicted_theta[:, 0, 0].item(), 4),
+                              np.round(predicted_theta[:, 0, 1].item(), 4),
+                              np.round(predicted_theta[:, 0, 2].item(), 4),
+                              np.round(predicted_theta[:, 0, 3].item(), 4),
+                              np.round(predicted_theta[:, 1, 0].item(), 4),
+                              np.round(predicted_theta[:, 1, 1].item(), 4),
+                              np.round(predicted_theta[:, 1, 2].item(), 4),
+                              np.round(predicted_theta[:, 1, 3].item(), 4),
+                              np.round(predicted_theta[:, 2, 0].item(), 4),
+                              np.round(predicted_theta[:, 2, 1].item(), 4),
+                              np.round(predicted_theta[:, 2, 2].item(), 4),
+                              np.round(predicted_theta[:, 2, 3].item(), 4)
+                              ))
 
-    # return predicted_theta
+    return predicted_theta
 
 
 if __name__ == '__main__':
@@ -53,7 +68,7 @@ if __name__ == '__main__':
     patient_group = 'patient_data/gr5_STolav5to8'
     patient = 'p7_3d'
     fixfile = 'J249J70K_proc.h5'
-    movfile = 'J249J70M_proc.h5'
+    movfile = 'J249J70K_proc.h5'
     fixvol_no = 'vol01'
     movvol_no = 'vol02'
 
@@ -61,6 +76,7 @@ if __name__ == '__main__':
     vol_data = HDF5Image(PROJ_ROOT, patient_group, patient,
                          fixfile, movfile,
                          fixvol_no, movvol_no)
+    vol_data.normalize()  # Normalizes the volumetric data
 
     patch_size = 20
     stride = 20
@@ -76,13 +92,14 @@ if __name__ == '__main__':
                                     [0, 1, 0, 0],
                                     [0, 0, 1, 0]]])
 
-    warped_image = A.affine_transform(patched_data, theta_trans, patch=True)
+    warped_image = A.affine_transform(patched_data[:, 1, :].unsqueeze(1), theta_trans, patch=True)
+
     fixed_image = patched_data[:, 0, :]
 
     #=======================PARAMETERS==========================#
-    lr = 0.001  # learning rate
-    epochs = 1  # number of epochs
+    lr = 1e-3  # learning rate
+    epochs = 5  # number of epochs
+    train = True
     #===========================================================#
-
-    predicted_theta = train_network(fixed_image, warped_image, lr, epochs)
-    print(predicted_theta)
+    if train:
+        predicted_theta = train_network(fixed_image, warped_image, lr, epochs)
