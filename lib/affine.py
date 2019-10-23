@@ -1,11 +1,10 @@
 import torch
 import torch.nn.functional as F
-from HDF5Image import HDF5Image
-from patch_volume import create_patches
+from lib.HDF5Image import HDF5Image
+from lib.patch_volume import create_patches
 import numpy as np
-import cv2
-import utils as ut
-from ncc_loss import NCC
+import lib.utils as ut
+from lib.ncc_loss import NCC
 
 
 def affine_grid_3d(size, theta):
@@ -44,7 +43,7 @@ def affine_transform(data, theta, patch=True):
     """
     if patch:
         # Extracting only the moving image in the 'data'-variable
-        moving = data[:, 1, :]
+        moving = data[:, 0, :]
         moving = moving.unsqueeze(1)  # Re-adding channel-dimension
         B, C, D, H, W = moving.shape  # Extracting the dimensions
     else:
@@ -55,10 +54,10 @@ def affine_transform(data, theta, patch=True):
         B, C, D, H, W = moving.shape  # Extracting the dimensions
 
     grid = affine_grid_3d((B, C, D, H, W), theta)
-    transformed = F.grid_sample(moving, grid)
-    print('Transformed image shape: ', transformed.shape)
+    warped = F.grid_sample(moving, grid)
+    #print('Warped image shape: ', warped.shape)
 
-    return transformed
+    return warped
 
 
 if __name__ == "__main__":
@@ -95,7 +94,7 @@ if __name__ == "__main__":
 
     if show_patches:
         data = input_batch
-        warped_image = affine_transform(data, theta_trans, patch=True)
+        warped_image = affine_transform(data, theta_idt, patch=True)
         fixed_image = data[:, 1, :]  # This is moving data and NOT fixed for visual inspection only
         fixed_print_image = data[255, 1, :]
         ut.show_single(fixed_print_image.unsqueeze(0), fixed_print_image.unsqueeze(0).shape)  # Printing the original 255th patch in the moving image

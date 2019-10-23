@@ -29,7 +29,6 @@ class HDF5Image():
             volume_data.data[1, :] returns the moving image.
         """
 
-
         fixed = os.path.join(self.PROJ_ROOT, '{}/{}/{}'.format(self.patient_group, self.patient, self.fix_file))
         moving = os.path.join(self.PROJ_ROOT, '{}/{}/{}'.format(self.patient_group, self.patient, self.mov_file))
 
@@ -51,12 +50,8 @@ class HDF5Image():
 
         return vol_data
 
-    '''def normalize(self):
-        self.data = self.data.numpy().astype('float64')
-        self.data = self.data / 20
-        #tensor = torch.empty(self.data.shape, dtype=torch.float64)
-        self.data = torch.from_numpy(self.data).float()
-        self.data = self.data.clone().detach()'''
+    def normalize(self):
+        self.data = torch.div(self.data, torch.max(self.data))
 
 
 if __name__ == '__main__':

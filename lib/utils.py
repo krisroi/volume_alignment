@@ -30,7 +30,7 @@ def show_dual(data, num_volumes, shape):
     plt.show()
 
 
-def show_single(data, shape):
+def show_single(data, shape, title):
     fig, ax = plt.subplots(1, 3, squeeze=False, figsize=(20, 10))
 
     middle_slice = data[0, int(shape[1] / 2)]
@@ -46,4 +46,5 @@ def show_single(data, shape):
         ax[0, j].set_xlim([0, len(middle_slice)])
         ax[0, j].set_ylim([len(middle_slice), 0])
 
+    plt.title(title)
     plt.show()
