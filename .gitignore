@@ -18,3 +18,4 @@ __pycache__/
 
 # .txt files
 pseudo_train.txt
+loss.csv
