@@ -1,105 +1,147 @@
 import torch
 import torch.optim as optim
+import numpy as np
+import math
+import csv
+
+# Folder dependent imports
 import lib.network as network
 import lib.affine as A
 from lib.HDF5Image import HDF5Image
 from lib.patch_volume import create_patches
-import numpy as np
-import math
 from lib.ncc_loss import NCC
 import lib.utils as ut
+from visualize_res import loss_plot
 
 
-def train_network(fixed_image, warped_image, learning_rate, epochs):
+def train_data(patched_data, epoch, epochs, lr, batch_size, net, criterion, optimizer, set_idx):
+
+    fixed_patches = patched_data[:, 0, :].unsqueeze(1)
+    moving_patches = patched_data[:, 1, :].unsqueeze(1)
+
+    patch_loss = np.zeros(fixed_patches.shape[0])
+
+    for idx in range(fixed_patches.shape[0]):
+
+        optimizer.zero_grad()  # Zeroing the gradients
+
+        # Perform forward pass on moving pathces
+        if ((idx + batch_size) > fixed_patches.shape[0]):
+            predicted_theta = net(moving_patches[(idx - batch_size):idx, :])
+
+        elif ((idx - batch_size) < 0):
+            predicted_theta = net(moving_patches[idx:(idx + batch_size), :])
+
+        else:
+            predicted_theta = net(moving_patches[(idx - int(batch_size / 2)):(idx + int(batch_size / 2)), :])
+
+        predicted_deform = A.affine_transform(moving_patches[idx, :].unsqueeze(0), predicted_theta)
+
+        loss = criterion(fixed_patches[idx, :].unsqueeze(0),
+                         predicted_deform)
+
+        loss.backward()
+        patch_loss[idx] = loss.item()
+
+        optimizer.step()
+
+        if idx % 20 == 0:
+
+            with open('output/txtfiles/loss2810191545', mode='a') as loss_file:
+                loss_writer = csv.writer(loss_file, delimiter=',')
+                loss_writer.writerow([idx, patch_loss[idx], (epoch + 1), epochs])
+
+            print('====> Epoch: {}/{} \t Patch: {}/{} \t Datapart: {}/3 \t Patch loss: {}'
+                  .format(epoch + 1, epochs, idx, fixed_patches.shape[0], set_idx + 1, np.round(patch_loss[idx], 4)))
+
+    return patch_loss
+
+
+def train_network(PROJ_ROOT, patient_group, patient,
+                  fix_set, mov_set, epochs, lr, batch_size, patch_size,
+                  stride, fixvol_no, movvol_no):
+
+    with open('output/txtfiles/loss2810191545.csv', 'w') as new_file:
+        fieldnames = ['patch_num', 'patch_loss', 'epoch', 'num_epochs', 'lr=' + str(lr),
+                      'batch_size=' + str(batch_size), 'patch_size=' + str(patch_size), 'stride=' + str(stride)]
+        writer = csv.DictWriter(new_file, fieldnames=fieldnames)
+        writer.writeheader()
+
     net = network.Net()
     net.train()
 
     criterion = NCC()
-    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-    print('Fixed shape: {} \t Warped shape: {}'.format(fixed_image.shape, warped_image.shape))
+    optimizer = optim.Adam(net.parameters(), lr=lr)
 
-    # loss_val = torch.zeros(fixed_image.shape[0])
+    temp_loss = np.zeros(len(fix_set))
+    epoch_loss = np.zeros(epochs)
 
     for epoch in range(epochs):
 
-        for idx in range(1, fixed_image.shape[0]):
+        for set_idx in range(len(fix_set)):
 
-            optimizer.zero_grad()  # Zeroing the gradients
+            print('Loading next set of volume data ...')
+            vol_data = HDF5Image(PROJ_ROOT, patient_group, patient, fix_set[set_idx], mov_set[set_idx], fixvol_no, movvol_no)
+            vol_data.normalize()
 
-            # Perform forward pass on moving pathces
-            predicted_theta = net(warped_image[idx, :].unsqueeze(0))
-            predicted_deform = A.affine_transform(warped_image, predicted_theta, patch=True)
+            print('Patching loaded data ...')
+            patched_data = create_patches(vol_data.data, patch_size, stride)
 
-            # print('Predicted deformation shape: ', predicted_deform.shape)
-            #ut.show_single(fixed_image[idx, :].unsqueeze(0), fixed_image[idx, :].unsqueeze(0).shape, title='Fixed image')
-            #ut.show_single(warped_image[idx, :], warped_image[idx, :].shape, title='Warped image')
-            #ut.show_single(predicted_deform[idx, :].detach().numpy(), predicted_deform[idx, :].shape, title='Predicted deformation')
+            print('Training on the loaded data ...')
+            training_loss = train_data(patched_data,
+                                       epoch,
+                                       epochs,
+                                       lr,
+                                       batch_size,
+                                       net.train(),
+                                       criterion,
+                                       optimizer,
+                                       set_idx
+                                       )
+            temp_loss[set_idx] = np.mean(training_loss)
 
-            loss = criterion(fixed_image, predicted_deform, patch=True)
-            loss.backward()
-            loss_val = loss.item()
-
-            optimizer.step()
-
-            if idx % 20 == 0:
-                print('====> Epoch: {}/{} \t Loss: {} \t Patch: {}/{} \t Predicted theta: \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {} \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {} \n \t \t \t \t \t \t \t \t \t \t \t \t \t {}, {}, {}, {}'
-                      .format(epoch + 1, epochs, np.round(loss_val, 4), idx, fixed_image.shape[0],
-                              np.round(predicted_theta[:, 0, 0].item(), 4),
-                              np.round(predicted_theta[:, 0, 1].item(), 4),
-                              np.round(predicted_theta[:, 0, 2].item(), 4),
-                              np.round(predicted_theta[:, 0, 3].item(), 4),
-                              np.round(predicted_theta[:, 1, 0].item(), 4),
-                              np.round(predicted_theta[:, 1, 1].item(), 4),
-                              np.round(predicted_theta[:, 1, 2].item(), 4),
-                              np.round(predicted_theta[:, 1, 3].item(), 4),
-                              np.round(predicted_theta[:, 2, 0].item(), 4),
-                              np.round(predicted_theta[:, 2, 1].item(), 4),
-                              np.round(predicted_theta[:, 2, 2].item(), 4),
-                              np.round(predicted_theta[:, 2, 3].item(), 4)
-                              ))
-
-    return predicted_theta
+        epoch_loss[epoch] = np.mean(temp_loss)
+        print(epoch_loss[epoch])
+    return epoch_loss
 
 
 if __name__ == '__main__':
 
     # Defining filepath
     PROJ_ROOT = '/users/kristofferroise/project'
-    patient_group = 'patient_data/gr5_STolav5to8'
+    patient_group = 'patient_data_proc/gr5_STolav5to8'
     patient = 'p7_3d'
-    fixfile = 'J249J70K_proc.h5'
-    movfile = 'J249J70K_proc.h5'
     fixvol_no = 'vol01'
-    movvol_no = 'vol02'
+    movvol_no = 'vol01'
 
-    # Loading volumetric data
-    vol_data = HDF5Image(PROJ_ROOT, patient_group, patient,
-                         fixfile, movfile,
-                         fixvol_no, movvol_no)
-    vol_data.normalize()  # Normalizes the volumetric data
+    fix_set = ['J249J70E_proc.h5',
+               'J249J70E_proc.h5',
+               'J249J70E_proc.h5']
 
-    patch_size = 20
-    stride = 20
-
-    patched_data = create_patches(vol_data.data, patch_size, stride)
+    mov_set = ['J249J70I_proc.h5',
+               'J249J70K_proc.h5',
+               'J249J70G_proc.h5']
 
     # Creating known-transformation moving data
-    theta_trans = torch.FloatTensor([[[0.98, 0.02, 0, 0.02],
-                                      [0.02, 1, 0, 0.02],
-                                      [0, 0, 1, 0.02]]])
+    theta_trans = torch.FloatTensor([[[0.98, 0, 0, -0.02],
+                                      [0, 1, 0, 0.02],
+                                      [0, 0, 1, -0.02]]])
 
     theta_idt = torch.FloatTensor([[[1, 0, 0, 0],
                                     [0, 1, 0, 0],
                                     [0, 0, 1, 0]]])
 
-    warped_image = A.affine_transform(patched_data[:, 1, :].unsqueeze(1), theta_trans, patch=True)
-
-    fixed_image = patched_data[:, 0, :]
-
     #=======================PARAMETERS==========================#
-    lr = 1e-3  # learning rate
-    epochs = 5  # number of epochs
+    lr = 1e-4  # learning rate
+    epochs = 10  # number of epochs
+    batch_size = 16
+    patch_size = 30
+    stride = 30
     train = True
     #===========================================================#
     if train:
-        predicted_theta = train_network(fixed_image, warped_image, lr, epochs)
+        total_loss = train_network(PROJ_ROOT, patient_group, patient,
+                                   fix_set, mov_set, epochs, lr, batch_size, patch_size,
+                                   stride, fixvol_no, movvol_no)
+
+        print(total_loss)
