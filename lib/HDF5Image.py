@@ -51,7 +51,15 @@ class HDF5Image():
         return vol_data
 
     def normalize(self):
+        """ Normalizes pixel data in the .h5 files
+        Example:
+            volume_data = HDF5Image(required_parameters) # Loading files into volume_data
+            volume_data.normalize() # Normalizes the values stored in volume_data
+        """
         self.data = torch.div(self.data, torch.max(self.data))
+
+    def to(self, device):
+        self.data = self.data.to(device)
 
 
 if __name__ == '__main__':

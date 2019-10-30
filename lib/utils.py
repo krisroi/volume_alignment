@@ -46,5 +46,6 @@ def show_single(data, shape, title):
         ax[0, j].set_xlim([0, len(middle_slice)])
         ax[0, j].set_ylim([len(middle_slice), 0])
 
-    plt.title(title)
+    fig.suptitle(title)
+
     plt.show()

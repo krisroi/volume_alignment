@@ -1,10 +1,6 @@
 import torch
 import torch.nn.functional as F
-from lib.HDF5Image import HDF5Image
-from lib.patch_volume import create_patches
 import numpy as np
-import lib.utils as ut
-from lib.ncc_loss import NCC
 
 
 def affine_grid_3d(size, theta):
@@ -30,37 +26,58 @@ def affine_grid_3d(size, theta):
     return grid
 
 
-def affine_transform(data, theta, patch=True):
+def affine_transform(data, theta):
     """ Performs an affine transform of some input data with a transformation matrix theta
     Args:
-        data: input the volume data that is to be transformed
+        data: input the volume data that is to be transformed (both fixed and moving
+                image. The function extracts the correct moving part)
         theta: transformation matrix to do the transformation
-        patch: TRUE if the data to transform is patch volumes (default)
-               FALSE if the data to transform is full volume
     Returns:
         Transformed input data that is transformed with the transformation matrix.
         shape: [B, C, D, H, W]
     """
-    if patch:
-        # Extracting only the moving image in the 'data'-variable
-        moving = data[:, 0, :]
-        moving = moving.unsqueeze(1)  # Re-adding channel-dimension
-        B, C, D, H, W = moving.shape  # Extracting the dimensions
-    else:
-        # Extracting only the moving image in the 'data'-variable
-        moving = data[1, :]
-        moving = moving.unsqueeze(0)  # Re-adding channel-dimension
-        moving = moving.unsqueeze(0)  # Adding batch dimension (1)
-        B, C, D, H, W = moving.shape  # Extracting the dimensions
 
-    grid = affine_grid_3d((B, C, D, H, W), theta)
-    warped = F.grid_sample(moving, grid)
-    #print('Warped image shape: ', warped.shape)
+    # Extracting only the moving image in the 'data'-variable
+    moving = data[:, 0, :]
+    moving = moving.unsqueeze(1)  # Re-adding channel-dimension
+
+    B, C, D, H, W = moving.shape  # Extracting the dimensions
+
+    grid_3d = affine_grid_3d((B, C, D, H, W), theta)
+    warped = F.grid_sample(moving, grid_3d, padding_mode='border')  # alternatives: 'border', 'zeros', 'reflection'
+
+    return warped
+
+
+def affine_transform_full(data, theta):
+    """ Performs an affine transform of some input data with a transformation matrix theta
+    Args:
+        data: input the volume data that is to be transformed (both fixed and moving
+                image. The function extracts the correct moving part)
+        theta: transformation matrix to do the transformation
+    Returns:
+        Transformed input data that is transformed with the transformation matrix.
+        shape: [B, C, D, H, W]
+    """
+
+    # Extracting only the moving image in the 'data'-variable
+    moving = data.unsqueeze(0)  # Adding batch dimension
+
+    B, C, D, H, W = moving.shape  # Extracting the dimensions
+
+    grid_3d = affine_grid_3d((B, C, D, H, W), theta)
+    warped = F.grid_sample(moving, grid_3d, padding_mode='reflection')  # alternatives: 'border', 'zeros', 'reflection'
 
     return warped
 
 
 if __name__ == "__main__":
+
+    import utils as ut
+    from ncc_loss import NCC
+    from HDF5Image import HDF5Image
+    from patch_volume import create_patches
+
     PROJ_ROOT = '/users/kristofferroise/project'
     patient_group = 'patient_data/gr5_STolav5to8'
     patient = 'p7_3d'
@@ -78,7 +95,7 @@ if __name__ == "__main__":
                          fixfile, movfile,
                          fixvol_no, movvol_no)
 
-    input_batch = create_patches(vol_data.data, patch_size, stride)
+    patched_data = create_patches(vol_data.data, patch_size, stride)
 
     # Transformation matrix with slight rotation
     theta_trans = torch.FloatTensor([[[0.98, 0.02, 0, 0.02],
@@ -90,24 +107,11 @@ if __name__ == "__main__":
                                     [0, 1, 0, 0],
                                     [0, 0, 1, 0]]])
 
-    show_patches = True
-
-    if show_patches:
-        data = input_batch
-        warped_image = affine_transform(data, theta_idt, patch=True)
-        fixed_image = data[:, 1, :]  # This is moving data and NOT fixed for visual inspection only
-        fixed_print_image = data[255, 1, :]
-        ut.show_single(fixed_print_image.unsqueeze(0), fixed_print_image.unsqueeze(0).shape)  # Printing the original 255th patch in the moving image
-        ut.show_single(warped_image[255, :], warped_image[255, :].shape)  # Printing the warped 255th patch in the moving image
-        loss = crit(fixed_image, warped_image, patch=True)
-        print('Patch image loss: ', loss)
-
-    else:
-        data = vol_data.data
-        warped_image = affine_transform(data, theta_trans, patch=False)
-        fixed_image = data[1, :]
-        ut.show_single(fixed_image.unsqueeze(0), fixed_image.unsqueeze(0).shape)  # Printing the original moving image
-        ut.show_single(warped_image[0, :],
-                       warped_image[0, :].shape)  # Printing the warped moving image
-        loss = crit(fixed_image, warped_image, patch=False)
-        print('Full image loss: ', loss.item())
+    data = patched_data[:, 1, :].unsqueeze(1)
+    warped_image = affine_transform(data, theta_trans)
+    fixed_image = patched_data[:, 1, :].unsqueeze(1)  # This is moving data and NOT fixed for visual inspection only
+    fixed_print_image = patched_data[254, 1, :]
+    ut.show_single(fixed_print_image.unsqueeze(0), fixed_print_image.unsqueeze(0).shape, title='Fixed patches')  # Printing the original 255th patch in the moving image
+    ut.show_single(warped_image[254, :], warped_image[255, :].shape, title='Warped patches')  # Printing the warped 255th patch in the moving image
+    loss = NCC()(fixed_image, warped_image)
+    print('Patch image loss: ', loss.item())

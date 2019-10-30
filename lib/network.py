@@ -25,7 +25,6 @@ class Net(nn.Module):
         )
 
         # Regressor for the 3 * 4 matrix
-        # If you only want translational, the regressor needs to be 1*3
         self.fc_loc = nn.Sequential(
             nn.Linear(8192, 128),
             nn.ReLU(True),
@@ -42,7 +41,7 @@ class Net(nn.Module):
     def forward(self, x):
         """ Performs the usual foward pass through a localization network
         Returns:
-            A transformation matrix theta of the shape
+            A predicted transformation matrix theta of the shape
             [1, 0, 0, 0]
             [0, 1, 0, 0]
             [0, 0, 1, 0]
@@ -50,7 +49,7 @@ class Net(nn.Module):
         xs = self.localization(x)
         xs = xs.view(-1, xs.shape[0] * xs.shape[1] * xs.shape[2] * xs.shape[3] * xs.shape[4])
 
-        theta = self.fc_loc(xs)
-        theta = theta.view(-1, 3, 4)
+        predicted_theta = self.fc_loc(xs)
+        predicted_theta = predicted_theta.view(-1, 3, 4)
 
-        return theta
+        return predicted_theta
