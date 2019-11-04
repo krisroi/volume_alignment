@@ -14,8 +14,8 @@ class HDF5Image():
         self.patient = patient
         self.fix_file = fix_file
         self.mov_file = mov_file
-        self.fix_vol_no = fix_vol_no
-        self.mov_vol_no = mov_vol_no
+        self.fix_vol_no = 'vol{}'.format(fix_vol_no)
+        self.mov_vol_no = 'vol{}'.format(mov_vol_no)
 
         self.data = self.load_hdf5()
 
