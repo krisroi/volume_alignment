@@ -78,6 +78,6 @@ if __name__ == '__main__':
     if pred:
         start_time = datetime.now()
         with torch.no_grad():
-            predicted_theta = predict(warped_patch[100:116, :], model, device)
+            predicted_theta[i] = predict(warped_patch[100:116, :], model, device)
             print(predicted_theta)
         print('Total time elapsed: ', datetime.now() - start_time)
