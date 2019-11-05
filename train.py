@@ -4,6 +4,7 @@ import numpy as np
 import math
 import csv
 from datetime import datetime
+from sklearn.utils import shuffle
 
 # Folder dependent imports
 from lib.network import Net
@@ -58,9 +59,8 @@ def train_data(patched_data, epoch, epochs, lr, batch_size, net, criterion,
     return patch_loss, cur_state_dict
 
 
-def train_network(PROJ_ROOT, patient_group, patient,
-                  fix_set, mov_set, epochs, lr, batch_size, patch_size,
-                  stride, fix_vols, mov_vols, loss_path, num_sets, device, model_name):
+def train_network(path_to_files, fix_set, mov_set, epochs, lr, batch_size, patch_size,
+                  stride, fix_vols, mov_vols, loss_path, num_sets, device, model_name, voxelsize):
     '''with open(loss_path, 'w') as els:
         fieldnames = ['epoch', 'epoch_loss', 'lr=' + str(lr), 'batch_size=' + str(batch_size),
                       'patch_size=' + str(patch_size), 'stride=' + str(stride),
@@ -89,12 +89,20 @@ def train_network(PROJ_ROOT, patient_group, patient,
         for set_idx in range(num_sets):
 
             print('Loading next set of volume data ...')
-            vol_data = HDF5Image(PROJ_ROOT, patient_group, patient, fix_set[set_idx],
-                                 mov_set[set_idx], fix_vols[set_idx], mov_vols[set_idx])
+            vol_data = HDF5Image(path_to_files, fix_set[set_idx], mov_set[set_idx],
+                                 fix_vols[set_idx], mov_vols[set_idx])
             vol_data.normalize()
 
             print('Patching loaded data ...')
-            patched_data = create_patches(vol_data.data, patch_size, stride)
+            patched_data, loc = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
+            patch_location = 'output/txtfiles/patch_location.csv'
+
+            with open(patch_location, 'w') as lctn:
+                fieldnames = ['x_pos', 'y_pos', 'z_pos']
+                field_writer = csv.DictWriter(lctn, fieldnames=fieldnames)
+                field_writer.writeheader()
+                lctn_writer = csv.writer(lctn, delimiter=',')
+                lctn_writer.writerows(loc.cpu().numpy().round(5))
 
             print('Training on the loaded data ...')
             training_loss, cur_state_dict = train_data(patched_data,
@@ -128,29 +136,15 @@ def train_network(PROJ_ROOT, patient_group, patient,
 
 if __name__ == '__main__':
 
-    # Defining filepath to .h5 files
-    PROJ_ROOT = '/users/kristofferroise/'
-    patient_group = 'project'
-    patient = 'patient_data_proc'
-
-    # Filepath to dataset_information file
-    filepath = '/users/kristofferroise/project/Diverse/'
-    filename = 'dataset_information.csv'
-
-    dataset = Dataset(filepath, filename)
-
-    fix_set = dataset.fix_files
-    mov_set = dataset.mov_files
-    fix_vols = dataset.fix_vols
-    mov_vols = dataset.mov_vols
-
     #=======================PARAMETERS==========================#
     lr = 1e-4  # learning rate
     epochs = 1  # number of epochs
     use_sets = 26  # number of datasets that we wish to use. Max of 26
+    shuffle_sets = True
     batch_size = 16
     patch_size = 30
     stride = 30
+    voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
 
@@ -162,10 +156,27 @@ if __name__ == '__main__':
     model_name = 'output/models/model_{}_{}.pt'.format(date, time)
     loss_path = 'output/txtfiles/loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
     #===========================================================#
+
+    # Defining filepath to .h5 files
+    path_to_files = '/users/kristofferroise/project/patient_data_proc/'
+
+    # Filepath to dataset_information file
+    path_to_info = '/users/kristofferroise/project/Diverse/'
+    info_filename = 'dataset_information.csv'
+
+    dataset = Dataset(path_to_info, info_filename)
+
+    fix_set = dataset.fix_files
+    mov_set = dataset.mov_files
+    fix_vols = dataset.fix_vols
+    mov_vols = dataset.mov_vols
+
+    # Shuffling datasets
+    if shuffle_sets:
+        fix_set, mov_set, fix_vols, mov_vols = shuffle(fix_set, mov_set, fix_vols, mov_vols)
+
     if train:
         start_time = datetime.now()
-        total_loss = train_network(PROJ_ROOT, patient_group, patient,
-                                   fix_set, mov_set, epochs, lr, batch_size, patch_size,
-                                   stride, fix_vols, mov_vols, loss_path, use_sets,
-                                   device, model_name)
+        total_loss = train_network(path_to_files, fix_set, mov_set, epochs, lr, batch_size, patch_size,
+                                   stride, fix_vols, mov_vols, loss_path, use_sets, device, model_name, voxelsize)
         print('Total time elapsed: ', datetime.now() - start_time)
