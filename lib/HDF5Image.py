@@ -7,11 +7,9 @@ import cv2
 
 class HDF5Image():
 
-    def __init__(self, PROJ_ROOT, patient_group, patient, fix_file, mov_file, fix_vol_no, mov_vol_no):
+    def __init__(self, filepath, fix_file, mov_file, fix_vol_no, mov_vol_no):
         super(HDF5Image, self).__init__()
-        self.PROJ_ROOT = PROJ_ROOT
-        self.patient_group = patient_group
-        self.patient = patient
+        self.filepath = filepath
         self.fix_file = fix_file
         self.mov_file = mov_file
         self.fix_vol_no = 'vol{}'.format(fix_vol_no)
@@ -29,8 +27,8 @@ class HDF5Image():
             volume_data.data[1, :] returns the moving image.
         """
 
-        fixed = os.path.join(self.PROJ_ROOT, '{}/{}/{}'.format(self.patient_group, self.patient, self.fix_file))
-        moving = os.path.join(self.PROJ_ROOT, '{}/{}/{}'.format(self.patient_group, self.patient, self.mov_file))
+        fixed = '{}{}'.format(self.filepath, self.fix_file)
+        moving = '{}{}'.format(self.filepath, self.mov_file)
 
         with h5py.File(fixed, 'r') as fix, h5py.File(moving, 'r') as mov:
             # Loads all volumes
@@ -59,27 +57,6 @@ class HDF5Image():
         self.data = torch.div(self.data, torch.max(self.data))
 
     def to(self, device):
+        """ Casts data-variable to specified device
+        """
         self.data = self.data.to(device)
-
-
-if __name__ == '__main__':
-    PROJ_ROOT = '/users/kristofferroise/project'
-    patient_group = 'patient_data/gr5_STolav5to8'
-    patient = 'p7_3d'
-    fixfile = 'J249J70K_proc.h5'
-    movfile = 'J249J70M_proc.h5'
-    fixvol_no = 'vol01'
-    movvol_no = 'vol02'
-
-    image = HDF5Image(PROJ_ROOT, patient_group, patient,
-                      fixfile, movfile,
-                      fixvol_no, movvol_no)
-
-    image = np.array(image.data, dtype=np.uint8)
-
-    cv2.imshow('X slice', image[1, int(image.shape[1] / 2), :, :])
-    cv2.imshow('Y slice', image[1, :, int(image.shape[2] / 2), :])
-    cv2.imshow('Z slice', image[1, :, :, int(image.shape[3] / 2)])
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
