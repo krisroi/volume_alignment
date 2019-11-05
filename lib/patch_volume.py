@@ -79,7 +79,7 @@ def calculatePatchIdx3D(num_image, patch_size, image_size, step_size):
 #======================================================================================#
 
 
-def create_patches(data, patch_size, stride):
+def create_patches(data, patch_size, stride, device, voxelsize):
     """ Patches the volumetric input data, using the patch_size and the stride.
     Args:
         data: volumetric data, both moving and fixed
@@ -104,8 +104,8 @@ def create_patches(data, patch_size, stride):
 
     # USELESS FOR-LOOP, consider removing
     for i in range(N - 1):
-        flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
-        flat_idx_select = torch.zeros(flat_idx.size())
+        flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3)).to(device)
+        flat_idx_select = torch.zeros(flat_idx.size()).to(device)
 
         for patch_idx in range(1, flat_idx.size()[0]):
             patch_pos = idx2pos_4D(flat_idx[patch_idx], data_size[1:])
@@ -119,10 +119,10 @@ def create_patches(data, patch_size, stride):
                                      patch_pos[2]:patch_pos[2] + patch_size,
                                      patch_pos[3]:patch_pos[3] + patch_size]
 
-            fix_on = torch.ones(fixed_patch.shape)
-            fix_off = torch.zeros(fixed_patch.shape)
-            mov_on = torch.ones(moving_patch.shape)
-            mov_off = torch.zeros(moving_patch.shape)
+            fix_on = torch.ones(fixed_patch.shape).to(device)
+            fix_off = torch.zeros(fixed_patch.shape).to(device)
+            mov_on = torch.ones(moving_patch.shape).to(device)
+            mov_off = torch.zeros(moving_patch.shape).to(device)
 
             # Checking where in the patches there is data and where it is not
             fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
@@ -138,17 +138,20 @@ def create_patches(data, patch_size, stride):
 
         patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size)
 
+        loc = torch.zeros([len(flat_idx), 3], dtype=torch.float64, device=device)
+
         for slices in range(flat_idx.shape[0]):
             patch_pos = idx2pos_4D(flat_idx[slices], data_size[1:])
             patched_data[slices, 0] = data.data[i,
-                                                patch_pos[1]:patch_pos[1] + patch_size,
-                                                patch_pos[2]:patch_pos[2] + patch_size,
-                                                patch_pos[3]:patch_pos[3] + patch_size]
+                                                patch_pos[1]: patch_pos[1] + patch_size,
+                                                patch_pos[2]: patch_pos[2] + patch_size,
+                                                patch_pos[3]: patch_pos[3] + patch_size]
             patched_data[slices, 1] = data.data[i + 1,
-                                                patch_pos[1]:patch_pos[1] + patch_size,
-                                                patch_pos[2]:patch_pos[2] + patch_size,
-                                                patch_pos[3]:patch_pos[3] + patch_size]
+                                                patch_pos[1]: patch_pos[1] + patch_size,
+                                                patch_pos[2]: patch_pos[2] + patch_size,
+                                                patch_pos[3]: patch_pos[3] + patch_size]
+            loc[slices] = patch_pos[1:4]
         # end for
     # end for
 
-    return patched_data
+    return patched_data, (loc * voxelsize)
