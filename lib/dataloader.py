@@ -1,11 +1,11 @@
 import pandas as pd
 
 
-class Dataset():
+class GetDatasetInformation():
     # Returns the dataset as four different lists
 
     def __init__(self, filepath, filename):
-        super(Dataset, self).__init__()
+        super(GetDatasetInformation, self).__init__()
 
         self.filepath = filepath
         self.filename = filename
