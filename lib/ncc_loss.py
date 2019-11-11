@@ -36,8 +36,8 @@ def normalized_cross_correlation(fixed_image, warped_image, reduction='mean'):
     ncc = torch.div(num, (den + alpha))
 
     if reduction == 'mean':
-        ncc = torch.mean(ncc, dim=0, keepdim=True)
+        ncc = torch.mean(ncc, dim=0)
     elif reduction == 'sum':
-        ncc = torch.sum(ncc, dim=0, keepdim=True)
+        ncc = torch.sum(ncc, dim=0)
 
-    return 1 - ncc  # Try experimenting with 1 - NCC and -NCC
+    return 1 - ncc

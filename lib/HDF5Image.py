@@ -57,6 +57,11 @@ class HDF5Image():
         self.data = torch.div(self.data, torch.max(self.data))
 
     def to(self, device):
-        """ Casts data-variable to specified device
+        """ Transfers data-variable to specified device
         """
         self.data = self.data.to(device)
+
+    def cpu(self):
+        """ Transfers data-variable to CPU
+        """
+        self.data = self.data.cpu()

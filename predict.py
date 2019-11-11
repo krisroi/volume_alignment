@@ -81,3 +81,13 @@ if __name__ == '__main__':
             predicted_theta[i] = predict(warped_patch[100:116, :], model, device)
             print(predicted_theta)
         print('Total time elapsed: ', datetime.now() - start_time)
+
+        # This is more for a prediction kind of part
+
+            patch_location = 'output/txtfiles/patch_location.csv'
+            with open(patch_location, 'w') as lctn:
+                fieldnames = ['x_pos', 'y_pos', 'z_pos']
+                field_writer = csv.DictWriter(lctn, fieldnames=fieldnames)
+                field_writer.writeheader()
+                lctn_writer = csv.writer(lctn, delimiter=',')
+                lctn_writer.writerows(loc.cpu().numpy().round(5))

@@ -15,7 +15,6 @@ def affine_grid_3d(size, theta):
         A 3d affine grid that is used lated for transformation
         Return size: [B, D, H, W, 3]
     """
-
     B, C, D, H, W = size  # Extract dimensions of the input
 
     theta = theta.expand(B, 3, 4)  # expand to the number of batches you need
@@ -29,46 +28,18 @@ def affine_grid_3d(size, theta):
 def affine_transform(data, theta):
     """ Performs an affine transform of some input data with a transformation matrix theta
     Args:
-        data: input the volume data that is to be transformed (both fixed and moving
-                image. The function extracts the correct moving part)
+        data: input the volume data that is to be transformed
         theta: transformation matrix to do the transformation
     Returns:
         Transformed input data that is transformed with the transformation matrix.
         shape: [B, C, D, H, W]
     """
-
-    # Extracting only the moving image in the 'data'-variable
-    moving = data[:, 0, :]
-    moving = moving.unsqueeze(1)  # Re-adding channel-dimension
-
-    B, C, D, H, W = moving.shape  # Extracting the dimensions
+    B, C, D, H, W = data.shape  # Extracting the dimensions
 
     grid_3d = affine_grid_3d((B, C, D, H, W), theta)
-    warped = F.grid_sample(moving, grid_3d, padding_mode='border')  # alternatives: 'border', 'zeros', 'reflection'
+    warped_patches = F.grid_sample(data, grid_3d, padding_mode='border')  # alternatives: 'border', 'zeros', 'reflection'
 
-    return warped
-
-
-def affine_transform_full(data, theta):
-    """ Performs an affine transform of some input data with a transformation matrix theta
-    Args:
-        data: input the volume data that is to be transformed (both fixed and moving
-                image. The function extracts the correct moving part)
-        theta: transformation matrix to do the transformation
-    Returns:
-        Transformed input data that is transformed with the transformation matrix.
-        shape: [B, C, D, H, W]
-    """
-
-    # Extracting only the moving image in the 'data'-variable
-    moving = data.unsqueeze(0)  # Adding batch dimension
-
-    B, C, D, H, W = moving.shape  # Extracting the dimensions
-
-    grid_3d = affine_grid_3d((B, C, D, H, W), theta)
-    warped = F.grid_sample(moving, grid_3d, padding_mode='reflection')  # alternatives: 'border', 'zeros', 'reflection'
-
-    return warped
+    return warped_patches
 
 
 if __name__ == "__main__":
