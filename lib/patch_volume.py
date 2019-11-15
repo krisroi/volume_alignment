@@ -82,9 +82,11 @@ def calculatePatchIdx3D(num_image, patch_size, image_size, step_size):
 def create_patches(data, patch_size, stride, device, voxelsize):
     """ Patches the volumetric input data, using the patch_size and the stride.
     Args:
-        data: volumetric data, both moving and fixed
-        patch_size: desired shape of each patch (patch_size x patch_size x patch_size)
-        stride: stride length of the patches, defines the overlap. If stride = patch_size, there is no overlap.
+        data (Tensor): volumetric data, both moving and fixed
+        patch_size (int): desired shape of each patch (patch_size x patch_size x patch_size)
+        stride (int): stride length of the patches, defines the overlap. If stride = patch_size, there is no overlap.
+        device (torch.device): desired device to run code on
+        voxelsize (float): size of voxels in the .h5 images
     Returns:
         Patched volumetric data, defined by the patch size and stride.
         shape: [num_patches, num_channels, patch_size, patch_size, patch_size]
@@ -124,12 +126,14 @@ def create_patches(data, patch_size, stride, device, voxelsize):
             mov_on = torch.ones(moving_patch.shape)
             mov_off = torch.zeros(moving_patch.shape)
 
-            # Checking where in the patches there is data and where it is not
+            # Checking for non-zero data
             fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
             moving_on = torch.where(moving_patch != 0, mov_on, mov_off)
 
-            # Selecting only the patches that contain > 40% non-zero data
-            if (torch.sum(fixed_on) >= (patch_size**3) * 0.4) & (torch.sum(moving_on) >= (patch_size**3) * 0.4):
+            threshold = 0.55
+
+            # Selecting only the patches that contain > threshold% non-zero data
+            if (torch.sum(fixed_on) >= (patch_size**3) * threshold) & (torch.sum(moving_on) >= (patch_size**3) * threshold):
                 flat_idx_select[patch_idx] = 1
 
         # end for
