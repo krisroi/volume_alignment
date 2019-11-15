@@ -2,13 +2,6 @@ import matplotlib.pyplot as plt
 import torch
 
 
-def normalize_pixels(data):
-    data = data / 255.0
-    tensor = torch.empty(data.shape, dtype=torch.float64)
-    data = data.clone().detach()
-    return data
-
-
 def show_dual(data, num_volumes, shape):
     fig, ax = plt.subplots(2, 3, squeeze=False, figsize=(20, 10))
 

@@ -1,11 +1,10 @@
 import h5py
 import torch
-import os
-import numpy as np
-import cv2
 
 
 class HDF5Image():
+    """Class to load HDF5 images from .h5 files
+    """
 
     def __init__(self, filepath, fix_file, mov_file, fix_vol_no, mov_vol_no):
         super(HDF5Image, self).__init__()
@@ -19,7 +18,6 @@ class HDF5Image():
 
     def load_hdf5(self):
         """ Loads HDF5-data from the specified filepath
-
         Returns:
             Return a variable data that contains both a fixed- and a moving image.
             The returned variable is on the form [2, x-length, y-length, z-length].

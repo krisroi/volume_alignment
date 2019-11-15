@@ -2,7 +2,11 @@ import pandas as pd
 
 
 class GetDatasetInformation():
-    # Returns the dataset as four different lists
+    """Reads dataset information from a .txt file and returns the information as lists
+        Args:
+            filepath (string): filepath to the .txt file
+            filename (string): filename of the .txt file
+    """
 
     def __init__(self, filepath, filename):
         super(GetDatasetInformation, self).__init__()
