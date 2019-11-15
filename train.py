@@ -40,205 +40,37 @@ class CreateDataset(Dataset):
         return self.fixed_patches[idx, :], self.moving_patches[idx, :]
 
 
-def validate(path_to_files, val_fix_set, val_mov_set, val_fix_vols, val_mov_vols, batch_size, net, criterion, device):
-
-    avg_val_loss = torch.zeros(num_validation_sets, device=device)  # Holding average validation loss over all validation sets
-    step_val_loss = torch.Tensor([])  # Holding validation loss over each batch_idx for all validation sets
-
-    for val_set_idx in range(len(val_fix_set)):
-
-        # Loading and normalizing validation images from .h5 files
-        validation_data = HDF5Image(path_to_files, val_fix_set[val_set_idx], val_mov_set[val_set_idx],
-                                    val_fix_vols[val_set_idx], val_mov_vols[val_set_idx])
-        validation_data.normalize()
-        validation_data.cpu()
-
-        patched_validation_data, _ = create_patches(validation_data.data, patch_size, stride, device, voxelsize)
-
-        fixed_patches = patched_validation_data[:, 0, :].unsqueeze(1)
-        moving_patches = patched_validation_data[:, 1, :].unsqueeze(1)
-
-        # Create and load validation data in batches of batch_size
-        validation_set = CreateDataset(fixed_patches, moving_patches)
-        validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-
-        set_val_loss = torch.zeros(len(validation_loader), device=device)  # Holding validation loss over all batch_idx for one validation set
-
-        for batch_idx, (fixed_batch, moving_batch) in enumerate(validation_loader):
-
-            fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)  # Transfer patches to GPU (if available)
-
-            predicted_theta = net(moving_batch)  # Forward pass to predict deformation matrix
-
-            predicted_deform = A.affine_transform(moving_batch, predicted_theta)  # Affine transformation to predict moving image
-
-            loss = criterion(fixed_batch, predicted_deform, reduction='mean')  # Compute NCC loss between fixed_patches and predicted moving_patches
-
-            set_val_loss[batch_idx] = loss.item()  # Store loss
-
-        avg_val_loss[val_set_idx] = torch.mean(set_val_loss)
-        step_val_loss = torch.cat((step_val_loss, set_val_loss), dim=0)
-
-    return avg_val_loss, step_val_loss
+def progress_printer(percentage):
+    """Function returning a progress bar
+        Args:
+            percentage (float): percentage point
+    """
+    eq = '=====================>'
+    dots = '......................'
+    printer = '[{}{}]'.format(eq[len(eq) - math.ceil(percentage*20):len(eq)], dots[2:len(eq) - math.ceil(percentage*20)])
+    return printer
 
 
-def train(patched_data, epoch, epochs, lr, batch_size, net, criterion,
-          optimizer, set_idx, num_sets, device, num_validation_sets):
+def generate_patches(path_to_infofile, info_filename, path_to_h5files,
+                     patch_size, stride, device, voxelsize, tot_num_sets):
+    """Loading all datasets, creates patches and store all patches in a single array.
+        Args:
+            path_to_file (string): filepath to .txt file containing dataset information
+            info_filename (string): filename for the above file
+            path_to_h5files (string): path to .h5 files
+            patch_size (int): desired patch size
+            stride (int): desired stride between patches
+            voxelsize (float): not used here, but create_patches has it as input
+            tot_num_sets (int): desired number of sets to use in the model
+        Returns:
+            fixed patches: all fixed patches in the dataset ([num_patches, 1, **patch_size])
+            moving patches: all moving patches in the dataset ([num_patches, 1, **patch_size])
+    """
 
-    fixed_patches = patched_data[:, 0, :, ].unsqueeze(1)
-    moving_patches = patched_data[:, 1, :].unsqueeze(1)
+    fixed_patches = torch.tensor([]).to(device)
+    moving_patches = torch.tensor([]).to(device)
 
-    train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-
-    set_train_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
-
-    for batch_idx, (fixed_batch, moving_batch) in enumerate(train_loader):
-
-        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
-
-        optimizer.zero_grad()
-
-        predicted_theta = net(moving_batch)
-
-        predicted_deform = A.affine_transform(moving_batch, predicted_theta)
-
-        loss = criterion(fixed_batch, predicted_deform, reduction='mean')
-        loss.backward()
-        optimizer.step()
-
-        set_train_loss[batch_idx] = loss.item()
-
-        if batch_idx % 10 == 0:
-            print('{}/{}%'.format(np.round((batch_idx / len(train_loader)) * 100, 3), 100), end='\r')
-
-        cur_state_dict = net.state_dict()
-
-    return set_train_loss, cur_state_dict
-
-
-def train_network(path_to_files, fix_set, mov_set, epochs, lr, batch_size, patch_size,
-                  stride, fix_vols, mov_vols, avg_loss_path, num_sets, device, model_name, voxelsize, num_validation_sets):
-
-    net = Net().to(device)
-
-    criterion = NCC().to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20, 30], gamma=0.1)  # To change lr during training
-
-    # Defining training set
-    train_fix_set = fix_set[0:num_sets - num_validation_sets]
-    train_mov_set = mov_set[0:num_sets - num_validation_sets]
-    train_fix_vols = fix_vols[0:num_sets - num_validation_sets]
-    train_mov_vols = mov_vols[0:num_sets - num_validation_sets]
-
-    # Defining validation set
-    val_fix_set = fix_set[num_sets - num_validation_sets:num_sets]
-    val_mov_set = mov_set[num_sets - num_validation_sets:num_sets]
-    val_fix_vols = fix_vols[num_sets - num_validation_sets:num_sets]
-    val_mov_vols = mov_vols[num_sets - num_validation_sets:num_sets]
-
-    # Creating loss-storage variables
-    avg_training_loss = torch.zeros(num_sets - num_validation_sets).to(device)
-    step_training_loss = torch.Tensor([]).to(device)
-    total_step_loss = torch.Tensor([]).to(device)
-    epoch_loss = torch.zeros(epochs).to(device)
-
-    print('Initializing...', flush=True)
-
-    for epoch in range(epochs):
-
-        train_fix_set, train_mov_set, train_fix_vols, train_mov_vols = shuffle(train_fix_set, train_mov_set, train_fix_vols, train_mov_vols)
-
-        for set_idx in range(num_sets - num_validation_sets):
-
-            train_data = HDF5Image(path_to_files, train_fix_set[set_idx], train_mov_set[set_idx],
-                                   train_fix_vols[set_idx], train_mov_vols[set_idx])
-            train_data.normalize()
-            train_data.cpu()
-
-            patched_training_data, _ = create_patches(train_data.data, patch_size, stride, device, voxelsize)
-
-            training_loss, cur_state_dict = train(patched_training_data,
-                                                  epoch,
-                                                  epochs,
-                                                  lr,
-                                                  batch_size,
-                                                  net.train(),
-                                                  criterion,
-                                                  optimizer,
-                                                  set_idx,
-                                                  num_sets,
-                                                  device,
-                                                  num_validation_sets
-                                                  )
-
-            avg_training_loss[set_idx] = torch.mean(training_loss)
-            step_training_loss = torch.cat((step_training_loss, training_loss), dim=0)
-
-            print('Intermediate loss per training set: {} \t Steps in this set: {}'.format(avg_training_loss[set_idx], math.ceil(patched_training_data.shape[0] / batch_size)))
-
-        model_info = {'patch_size': patch_size,
-                      'state_dict': cur_state_dict}
-        torch.save(model_info, model_name)
-
-        with torch.no_grad():
-            avg_validation_loss, step_validation_loss = validate(path_to_files, val_fix_set, val_mov_set, val_fix_vols, val_mov_vols,
-                                                                 batch_size, net.eval(), criterion, device)
-
-        avg_epoch_loss = torch.mean(avg_training_loss)
-        print('\n Epoch: {}/{} \t Training_loss: {} \t Validation loss: {}'
-              .format(epoch + 1, epochs, avg_epoch_loss, avg_validation_loss.item()))
-
-        with open(avg_loss_path, mode='a') as loss:
-            loss_writer = csv.writer(loss, delimiter=',')
-            loss_writer.writerow([(epoch + 1), avg_epoch_loss.item(), torch.mean(avg_validation_loss).item()])
-
-        total_step_loss = torch.cat((total_step_loss, step_training_loss))
-
-    return total_step_loss
-
-
-if __name__ == '__main__':
-
-    #=======================PARAMETERS==========================#
-    lr = 1e-3  # learning rate
-    epochs = 1  # number of epochs
-    tot_num_sets = 2  # Total number of sets to use (25 max)
-    num_validation_sets = 1
-    batch_size = 1
-    patch_size = 40
-    stride = 35
-    voxelsize = 7.0000003e-4
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    #===========================================================#
-
-    #=======================SAVING DATA=========================#
-    now = datetime.now()
-    date = now.strftime('%d%m%Y')
-    time = now.strftime('%H%M%S')
-    model_name = 'output/discard/model_{}_{}.pt'.format(date, time)
-    avg_loss_path = 'output/discard/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
-    step_loss_path = 'output/discard/step_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
-
-    path_to_files = '/users/kristofferroise/project/patient_data_proc/'
-
-    # Filepath to dataset_information file
-    path_to_info = '/users/kristofferroise/project/Diverse/'
-    info_filename = 'dataset_information.csv'
-    #===========================================================#
-
-    #===================INITIALIZE FILES========================#
-    with open(avg_loss_path, 'w') as els:
-        fieldnames = ['epoch', 'training_loss', 'validation_loss', 'lr=' + str(lr), 'batch_size=' + str(batch_size),
-                      'patch_size=' + str(patch_size), 'stride=' + str(stride),
-                      'number_of_datasets=' + str(tot_num_sets), 'device=' + str(device)]
-        epoch_writer = csv.DictWriter(els, fieldnames=fieldnames)
-        epoch_writer.writeheader()
-
-    #===========================================================#
-
-    dataset = GetDatasetInformation(path_to_info, info_filename)
+    dataset = GetDatasetInformation(path_to_infofile, info_filename)
 
     fix_set = dataset.fix_files
     mov_set = dataset.mov_files
@@ -252,7 +84,248 @@ if __name__ == '__main__':
     fix_vols = fix_vols[0:tot_num_sets]
     mov_vols = mov_vols[0:tot_num_sets]
 
+    print('Creating patches ... ')
+
+    for set_idx in range(len(fix_set)):
+
+        printer = progress_printer(set_idx/len(fix_set))
+        print(printer, end='\r')
+
+        vol_data = HDF5Image(path_to_h5files, fix_set[set_idx], mov_set[set_idx],
+                             fix_vols[set_idx], mov_vols[set_idx])
+        vol_data.normalize()
+        vol_data.cpu()
+
+        patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
+        patched_vol_data = patched_vol_data.to(device)
+
+        fixed_patches = torch.cat((fixed_patches, patched_vol_data[:, 0, :]))
+        moving_patches = torch.cat((moving_patches, patched_vol_data[:, 1, :]))
+
+    print(fixed_patches.shape)
+
+    print('Finished creating patches')
+
+    shuffler = CreateDataset(fixed_patches, moving_patches)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
+
+    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+
+    print('Shuffling patches ...')
+
+    for batch_idx, (fixed_patches, moving_patches) in enumerate(shuffle_loader):
+
+        printer = progress_printer(batch_idx/len(shuffle_loader))
+        print(printer, end='\r')
+
+        shuffled_fixed_patches[batch_idx, :] = fixed_patches
+        shuffled_moving_patches[batch_idx, :] = moving_patches
+
+    print('Finished shuffling patches')
+    print('\n')
+
+    return shuffled_fixed_patches.unsqueeze(1).cpu(), shuffled_moving_patches.unsqueeze(1).cpu()
+
+
+def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criterion, device):
+    """Validating the model using part of the dataset
+        Args:
+            fixed_patches (Tensor): Tensor holding the fixed_patches ([num_patches, 1, patch_size, patch_size, patch_size])
+            moving_patches (Tensor): Tensor holding the moving patches ([num_patches, 1, patch_size, patch_size, patch_size])
+            epoch (int): current epoch
+            epochs (int): total number of epochs
+            batch_size (int): Desired batch size
+            net (nn.Module): Network model
+            criterion (nn.Module): Loss-function
+            device (torch.device): Device in which to run the validation
+        Returns:
+            array of validation losses over each batch
+    """
+
+    validation_set = CreateDataset(fixed_patches, moving_patches)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+
+    validation_loss = torch.zeros(len(validation_loader), device=device)
+
+    for batch_idx, (fixed_batch, moving_batch) in enumerate(validation_loader):
+
+        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+
+        predicted_theta = net(moving_batch)
+        predicted_deform = A.affine_transform(moving_batch, predicted_theta)
+
+        loss = criterion(fixed_batch, predicted_deform, reduction='mean')
+        validation_loss[batch_idx] = loss.item()
+
+        printer = progress_printer((batch_idx + 1) / len(validation_loader))
+        print(printer + ' Validating epoch {:2}/{} (steps: {})'.format(epoch + 1, epochs, len(validation_loader)), end='\r')
+
+    print('\n')
+
+    return validation_loss
+
+
+def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criterion,
+          optimizer, device):
+    """Training the model
+        Args:
+            fixed_patches (Tensor): Tensor holding the fixed_patches ([num_patches, 1, patch_size, patch_size, patch_size])
+            moving_patches (Tensor): Tensor holding the moving patches ([num_patches, 1, patch_size, patch_size, patch_size])
+            epoch (int): current epoch
+            epochs (int): total number of epochs
+            batch_size (int): Desired batch size
+            net (nn.Module): Network model
+            criterion (nn.Module): Loss-function
+            optimizer (optim.Optimizer): optimizer in which to optimise the network
+            device (torch.device): Device in which to run the validation
+        Returns:
+            array of training losses over each batch
+    """
+
+    train_set = CreateDataset(fixed_patches, moving_patches)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+
+    training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
+
+    for batch_idx, (fixed_batch, moving_batch) in enumerate(train_loader):
+
+        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+
+        optimizer.zero_grad()
+
+        predicted_theta = net(moving_batch)
+        predicted_deform = A.affine_transform(moving_batch, predicted_theta)
+
+        loss = criterion(fixed_batch, predicted_deform, reduction='mean')
+        loss.backward()
+        training_loss[batch_idx] = loss.item()
+        optimizer.step()
+
+        printer = progress_printer(batch_idx / len(train_loader))
+        print(printer + ' Training epoch {:2}/{} (steps: {})'.format(epoch + 1, epochs, len(train_loader)), end='\r', flush=True)
+
+    return training_loss
+
+
+def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to_lossfile, device, model_name, validation_set_ratio):
+
+    net = Net().to(device)
+
+    criterion = NCC().to(device)
+    optimizer = optim.SGD(net.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 4, gamma=0.5)
+
+    fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
+    moving_training_patches = moving_patches[0:math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)), :]
+
+    fixed_validation_patches = fixed_patches[math.ceil(fixed_patches.shape[0] * (1 - validation_set_ratio)):fixed_patches.shape[0], :]
+    moving_validation_patches = moving_patches[math.ceil(moving_patches.shape[0] * (1 - validation_set_ratio)):moving_patches.shape[0], :]
+
+    print('Number of training samples: ', fixed_training_patches.shape[0])
+    print('Number of validation samples: ', fixed_validation_patches.shape[0])
+    print('\n')
+
+    # Creating loss-storage variables
+    epoch_train_loss = torch.zeros(epochs).to(device)
+    epoch_validation_loss = torch.zeros(epochs).to(device)
+
+    print('Initializing training')
+    print('\n')
+
+    for epoch in range(epochs):
+
+        # Train model
+        training_loss = train(fixed_training_patches,
+                              moving_training_patches,
+                              epoch,
+                              epochs,
+                              batch_size,
+                              net.train(),
+                              criterion,
+                              optimizer,
+                              device,
+                              )
+
+        # Validate model
+        with torch.no_grad():
+            validation_loss = validate(fixed_validation_patches,
+                                       moving_validation_patches,
+                                       epoch,
+                                       epochs,
+                                       batch_size,
+                                       net.eval(),
+                                       criterion,
+                                       device
+                                       )
+
+        scheduler.step()
+
+        epoch_train_loss[epoch] = torch.mean(training_loss)
+        epoch_validation_loss[epoch] = torch.mean(validation_loss)
+
+        cur_state_dict = net.state_dict()
+        model_info = {'patch_size': fixed_training_patches.shape[2],
+                      'state_dict': cur_state_dict}
+        torch.save(model_info, model_name)
+
+        print('Epoch: {}/{} \t Training_loss: {} \t Validation loss: {}'
+              .format(epoch + 1, epochs, epoch_train_loss[epoch], epoch_validation_loss[epoch]))
+        print('\n')
+
+        with open(path_to_lossfile, mode='a') as loss:
+            loss_writer = csv.writer(loss, delimiter=',')
+            loss_writer.writerow([(epoch + 1), epoch_train_loss[epoch].item(), epoch_validation_loss[epoch].item()])
+
+    return epoch_train_loss, epoch_validation_loss
+
+
+if __name__ == '__main__':
+
+    #=======================PARAMETERS==========================#
+    lr = 1e-2  # learning rate
+    epochs = 3  # number of epochs
+    tot_num_sets = 26  # Total number of sets to use (25 max)
+    validation_set_ratio = 0.2
+    batch_size = 2
+    patch_size = 50
+    stride = 25
+    voxelsize = 7.0000003e-4
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #===========================================================#
+
+    #=======================SAVING DATA=========================#
+    now = datetime.now()
+    date = now.strftime('%d%m%Y')
+    time = now.strftime('%H%M%S')
+
+    model_name = 'output/discard/model_{}_{}.pt'.format(date, time)
+    path_to_lossfile = 'output/discard/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
+
+    path_to_h5files = '/users/kristofferroise/project/patient_data_proc/'
+    path_to_infofile = '/users/kristofferroise/project/Diverse/'
+    info_filename = 'dataset_information.csv'
+    #===========================================================#
+
+    #===================INITIALIZE FILES========================#
+    with open(path_to_lossfile, 'w') as els:
+        fieldnames = ['epoch', 'training_loss', 'validation_loss', 'lr=' + str(lr), 'batch_size=' + str(batch_size),
+                      'patch_size=' + str(patch_size), 'stride=' + str(stride),
+                      'number_of_datasets=' + str(tot_num_sets), 'device=' + str(device)]
+        epoch_writer = csv.DictWriter(els, fieldnames=fieldnames)
+        epoch_writer.writeheader()
+
+    #===========================================================#
+
     start_time = datetime.now()
-    total_step_loss = train_network(path_to_files, fix_set, mov_set, epochs, lr, batch_size, patch_size,
-                                    stride, fix_vols, mov_vols, avg_loss_path, tot_num_sets, device, model_name, voxelsize, num_validation_sets)
+
+    fixed_patches, moving_patches = generate_patches(path_to_infofile, info_filename, path_to_h5files,
+                                                     patch_size, stride, device, voxelsize, tot_num_sets)
+
+    training_loss, validation_loss = train_network(fixed_patches, moving_patches, epochs, lr, batch_size,
+                                                   path_to_lossfile, device, model_name, validation_set_ratio)
+
     print('Total time elapsed: ', datetime.now() - start_time)
+
+    print('End training loss: ', training_loss)
+    print('End validation loss: ', validation_loss)
