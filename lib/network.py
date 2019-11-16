@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-
 
 class Net(nn.Module):
     """Model network
@@ -17,33 +14,33 @@ class Net(nn.Module):
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            nn.Conv3d(1, 32, kernel_size=5),
+            nn.Conv3d(1, 8, kernel_size=7),
+            nn.BatchNorm3d(8),
+            nn.MaxPool3d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv3d(8, 16, kernel_size=5),
+            nn.BatchNorm3d(16),
+            nn.MaxPool3d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv3d(16, 32, kernel_size=2),
             nn.BatchNorm3d(32),
             nn.MaxPool3d(2, stride=2),
             nn.ReLU(True),
-            nn.Conv3d(32, 64, kernel_size=5),
-            nn.BatchNorm3d(64),
-            nn.MaxPool3d(2, stride=2),
-            nn.ReLU(True),
-            nn.Conv3d(64, 128, kernel_size=5),
-            nn.BatchNorm3d(128),
-            nn.ReLU(True)
         )
 
         # Regressor for the 3 * 4 matrix
         # Numbers in the input of the linear layers are
-        #   64 = number of feature maps from the last convolution in localization
+        #   32 = number of feature maps from the last convolution in localization
         #   x * x * x = D * H * W out of the localization network
         self.fc_loc = nn.Sequential(
-            nn.Linear(128 * 5 * 5 * 5, 128),
+            nn.Linear(32 * 4 * 4 * 4, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(True),
-            # nn.Dropout(p=0.2),
-            nn.Linear(128, 32),
-            nn.ReLU(True),
-            nn.Linear(32, 3 * 4)
+            nn.Dropout(p=0.2),
+            nn.Linear(256, 3 * 4)
         )
+
         # Initialize the weights/bias with identity transformation
-        # fc_loc[x] gets the x-th layer in the sequential sequence
         self.fc_loc[4].weight.data.zero_()
         self.fc_loc[4].bias.data.copy_(torch.tensor([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], dtype=torch.float64))
 
