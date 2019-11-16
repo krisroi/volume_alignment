@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 
 # Folder dependent imports
 from lib.network import Net
-import lib.affine as A
+from lib.affine import affine_transform
 from lib.HDF5Image import HDF5Image
 from lib.patch_volume import create_patches
 from lib.ncc_loss import NCC
 import lib.utils as ut
 from lib.data_info_loader import GetDatasetInformation
+from predict import predict
 
 
 class CreateDataset(Dataset):
@@ -107,7 +108,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
     print('Finished creating patches')
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
-    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=False)
 
     shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
     shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
@@ -153,7 +154,7 @@ def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, crit
         fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
-        predicted_deform = A.affine_transform(moving_batch, predicted_theta)
+        predicted_deform = affine_transform(moving_batch, predicted_theta)
 
         loss = criterion(fixed_batch, predicted_deform, reduction='mean')
         validation_loss[batch_idx] = loss.item()
@@ -184,7 +185,7 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
     """
 
     train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True, drop_last=True)
 
     training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
 
@@ -195,7 +196,7 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
         optimizer.zero_grad()
 
         predicted_theta = net(moving_batch)
-        predicted_deform = A.affine_transform(moving_batch, predicted_theta)
+        predicted_deform = affine_transform(moving_batch, predicted_theta)
 
         loss = criterion(fixed_batch, predicted_deform, reduction='mean')
         loss.backward()
@@ -214,13 +215,13 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
 
     criterion = NCC().to(device)
     optimizer = optim.SGD(net.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 4, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
     moving_training_patches = moving_patches[0:math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)), :]
 
-    fixed_validation_patches = fixed_patches[math.ceil(fixed_patches.shape[0] * (1 - validation_set_ratio)):fixed_patches.shape[0], :]
-    moving_validation_patches = moving_patches[math.ceil(moving_patches.shape[0] * (1 - validation_set_ratio)):moving_patches.shape[0], :]
+    fixed_validation_patches = fixed_patches[math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)):fixed_patches.shape[0], :]
+    moving_validation_patches = moving_patches[math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)):moving_patches.shape[0], :]
 
     print('Number of training samples: ', fixed_training_patches.shape[0])
     print('Number of validation samples: ', fixed_validation_patches.shape[0])
@@ -282,14 +283,17 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
 
 if __name__ == '__main__':
 
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
+
     #=======================PARAMETERS==========================#
     lr = 1e-2  # learning rate
-    epochs = 3  # number of epochs
-    tot_num_sets = 26  # Total number of sets to use (25 max)
+    epochs = 1  # number of epochs
+    tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
     batch_size = 2
     patch_size = 50
-    stride = 25
+    stride = 100
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
@@ -314,18 +318,29 @@ if __name__ == '__main__':
                       'number_of_datasets=' + str(tot_num_sets), 'device=' + str(device)]
         epoch_writer = csv.DictWriter(els, fieldnames=fieldnames)
         epoch_writer.writeheader()
-
     #===========================================================#
 
     start_time = datetime.now()
 
+    generate_patches_start_time = datetime.now()
     fixed_patches, moving_patches = generate_patches(path_to_infofile, info_filename, path_to_h5files,
                                                      patch_size, stride, device, voxelsize, tot_num_sets)
+    print('Generate patches runtime: ', datetime.now() - generate_patches_start_time)
+    print('\n')
 
+    training_start_time = datetime.now()
     training_loss, validation_loss = train_network(fixed_patches, moving_patches, epochs, lr, batch_size,
                                                    path_to_lossfile, device, model_name, validation_set_ratio)
+    print('Training runtime: ', datetime.now() - training_start_time)
+    print('\n')
 
-    print('Total time elapsed: ', datetime.now() - start_time)
+    with torch.no_grad():
+        prediction_start_time = datetime.now()
+        predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name)
+        print('Prediction runtime: ', datetime.now() - prediction_start_time)
+        print('\n')
+
+    print('Total runtime: ', datetime.now() - start_time)
 
     print('End training loss: ', training_loss)
     print('End validation loss: ', validation_loss)
