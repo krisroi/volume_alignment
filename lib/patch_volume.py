@@ -1,4 +1,3 @@
-import time
 import torch
 from torch.nn import functional as F
 
@@ -130,7 +129,7 @@ def create_patches(data, patch_size, stride, device, voxelsize):
             fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
             moving_on = torch.where(moving_patch != 0, mov_on, mov_off)
 
-            threshold = 0.55
+            threshold = 0.7
 
             # Selecting only the patches that contain > threshold% non-zero data
             if (torch.sum(fixed_on) >= (patch_size**3) * threshold) & (torch.sum(moving_on) >= (patch_size**3) * threshold):
@@ -142,7 +141,9 @@ def create_patches(data, patch_size, stride, device, voxelsize):
 
         patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size)
 
-        loc = torch.zeros([len(flat_idx), 3], dtype=torch.float64)
+        dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+
+        loc = torch.zeros([len(flat_idx), 3]).type(dtype)
 
         for slices in range(flat_idx.shape[0]):
             patch_pos = idx2pos_4D(flat_idx[slices], data_size[1:])
