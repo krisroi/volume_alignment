@@ -3,7 +3,18 @@ import torch
 
 
 class HDF5Image():
-    """Class to load HDF5 images from .h5 files
+    """Loading .h5 files and returns them in a 2-channel tensor, one fixed- and one moving channel.
+        Args:
+            filepath (string): absolute path to .h5 files
+            fix_file (string): relative path to specific fixed file
+            mov_file (string): relative path to specific moving file
+            fix_vol_no (string): specific volume to extract from the fixed file
+            mov_vol_no (string): specific volume to extract from the moving file
+        Returns:
+            A tensor that contains both a fixed- and a moving image.
+            The returned tensor is on the form [2, x-length, y-length, z-length].
+            volume_data.data[0, :] returns the fixed image.
+            volume_data.data[1, :] returns the moving image.
     """
 
     def __init__(self, filepath, fix_file, mov_file, fix_vol_no, mov_vol_no):
@@ -18,22 +29,16 @@ class HDF5Image():
 
     def load_hdf5(self):
         """ Loads HDF5-data from the specified filepath
-        Returns:
-            Return a variable data that contains both a fixed- and a moving image.
-            The returned variable is on the form [2, x-length, y-length, z-length].
-            volume_data.data[0, :] returns the fixed image.
-            volume_data.data[1, :] returns the moving image.
         """
 
         fixed = '{}{}'.format(self.filepath, self.fix_file)
         moving = '{}{}'.format(self.filepath, self.mov_file)
 
         with h5py.File(fixed, 'r') as fix, h5py.File(moving, 'r') as mov:
-            # Loads all volumes
+
             fixed_volumes = fix['CartesianVolumes']
             moving_volumes = mov['CartesianVolumes']
 
-            # Sets vol01 equal to the data values in 'vol01'. Has shape (214, 214, 214) and type numpy.ndarray
             fix_vol = fixed_volumes[self.fix_vol_no][:]
             mov_vol = moving_volumes[self.mov_vol_no][:]
 
@@ -56,6 +61,8 @@ class HDF5Image():
 
     def to(self, device):
         """ Transfers data-variable to specified device
+            Args:
+                device (torch.device): desired device
         """
         self.data = self.data.to(device)
 

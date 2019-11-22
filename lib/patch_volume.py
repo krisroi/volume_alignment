@@ -94,69 +94,64 @@ def create_patches(data, patch_size, stride, device, voxelsize):
     # Returns zero if the dimensions of the volume is zero-dividable with the patch_size
     mod = len(data[0, :]) % patch_size
 
-    # Zero-pads the volume if the mod statement does not return zero
+    # Zero-pad the volume
     if mod != 0:
         pad_size = patch_size - mod
         padded = F.pad(data, (pad_size, 0, pad_size, 0, pad_size, 0))
         data = padded
 
     data_size = data.shape
-    N = data_size[0]
 
-    # USELESS FOR-LOOP, consider removing
-    for i in range(N - 1):
-        flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
-        flat_idx_select = torch.zeros(flat_idx.size())
+    flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
+    flat_idx_select = torch.zeros(flat_idx.size())
 
-        for patch_idx in range(1, flat_idx.size()[0]):
-            patch_pos = idx2pos_4D(flat_idx[patch_idx], data_size[1:])
+    for patch_idx in range(1, flat_idx.size()[0]):
+        patch_pos = idx2pos_4D(flat_idx[patch_idx], data_size[1:])
 
-            fixed_patch = data.data[i,
-                                    patch_pos[1]:patch_pos[1] + patch_size,
-                                    patch_pos[2]:patch_pos[2] + patch_size,
-                                    patch_pos[3]:patch_pos[3] + patch_size]
-            moving_patch = data.data[i + 1,
-                                     patch_pos[1]:patch_pos[1] + patch_size,
-                                     patch_pos[2]:patch_pos[2] + patch_size,
-                                     patch_pos[3]:patch_pos[3] + patch_size]
+        fixed_patch = data.data[0,
+                                patch_pos[1]:patch_pos[1] + patch_size,
+                                patch_pos[2]:patch_pos[2] + patch_size,
+                                patch_pos[3]:patch_pos[3] + patch_size]
+        moving_patch = data.data[1,
+                                 patch_pos[1]:patch_pos[1] + patch_size,
+                                 patch_pos[2]:patch_pos[2] + patch_size,
+                                 patch_pos[3]:patch_pos[3] + patch_size]
 
-            fix_on = torch.ones(fixed_patch.shape)
-            fix_off = torch.zeros(fixed_patch.shape)
-            mov_on = torch.ones(moving_patch.shape)
-            mov_off = torch.zeros(moving_patch.shape)
+        fix_on = torch.ones(fixed_patch.shape)
+        fix_off = torch.zeros(fixed_patch.shape)
+        mov_on = torch.ones(moving_patch.shape)
+        mov_off = torch.zeros(moving_patch.shape)
 
-            # Checking for non-zero data
-            fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
-            moving_on = torch.where(moving_patch != 0, mov_on, mov_off)
+        # Checking for non-zero data
+        fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
+        moving_on = torch.where(moving_patch != 0, mov_on, mov_off)
 
-            threshold = 0.7
+        threshold = 0.7
 
-            # Selecting only the patches that contain > threshold% non-zero data
-            if (torch.sum(fixed_on) >= (patch_size**3) * threshold) & (torch.sum(moving_on) >= (patch_size**3) * threshold):
-                flat_idx_select[patch_idx] = 1
+        # Selecting only the patches that contain > threshold% non-zero data
+        if (torch.sum(fixed_on) >= (patch_size**3) * threshold) & (torch.sum(moving_on) >= (patch_size**3) * threshold):
+            flat_idx_select[patch_idx] = 1
 
-        # end for
-        flat_idx_select = flat_idx_select.bool()
-        flat_idx = torch.masked_select(flat_idx, flat_idx_select)
+    flat_idx_select = flat_idx_select.bool()
+    flat_idx = torch.masked_select(flat_idx, flat_idx_select)
 
-        patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size)
+    patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size)
 
-        dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-        loc = torch.zeros([len(flat_idx), 3]).type(dtype)
+    loc = torch.zeros([len(flat_idx), 3]).type(dtype)
 
-        for slices in range(flat_idx.shape[0]):
-            patch_pos = idx2pos_4D(flat_idx[slices], data_size[1:])
-            patched_data[slices, 0] = data.data[i,
-                                                patch_pos[1]: patch_pos[1] + patch_size,
-                                                patch_pos[2]: patch_pos[2] + patch_size,
-                                                patch_pos[3]: patch_pos[3] + patch_size]
-            patched_data[slices, 1] = data.data[i + 1,
-                                                patch_pos[1]: patch_pos[1] + patch_size,
-                                                patch_pos[2]: patch_pos[2] + patch_size,
-                                                patch_pos[3]: patch_pos[3] + patch_size]
-            loc[slices] = patch_pos[1:4]
-        # end for
-    # end for
+    for slices in range(flat_idx.shape[0]):
+        patch_pos = idx2pos_4D(flat_idx[slices], data_size[1:])
+        patched_data[slices, 0] = data.data[0,
+                                            patch_pos[1]: patch_pos[1] + patch_size,
+                                            patch_pos[2]: patch_pos[2] + patch_size,
+                                            patch_pos[3]: patch_pos[3] + patch_size]
+        patched_data[slices, 1] = data.data[1,
+                                            patch_pos[1]: patch_pos[1] + patch_size,
+                                            patch_pos[2]: patch_pos[2] + patch_size,
+                                            patch_pos[3]: patch_pos[3] + patch_size]
+
+        loc[slices] = patch_pos[1:4]
 
     return patched_data, (loc * voxelsize)

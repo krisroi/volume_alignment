@@ -17,9 +17,9 @@ class GetDatasetInformation():
         self.fix_files, self.mov_files, self.fix_vols, self.mov_vols = self.load_dataset()
 
     def load_dataset(self):
-        ''' Reads the dataset information, pulls out the usable datasets
+        """ Reads the dataset information, pulls out the usable datasets
             and returns them together with corresponding volumes.
-        '''
+        """
 
         data = pd.read_csv('{}{}'.format(self.filepath, self.filename))
         data = data.loc[lambda df: data.usable == 'y', :]  # Extract only usable datasets (y: yes)

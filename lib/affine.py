@@ -5,13 +5,13 @@ import torch.nn.functional as F
 def affine_grid_3d(size, theta):
     """ Defines an affine grid in 3 dimensions.
     Args:
-        size: Inputs the size of the input batch in the form of
+        size (tuple): tuple of ints containing the dimensions to the moving patch
             B = batch size
             C = number of channels
             D, H, W = dimensions of the input volume in depth, height and width
-        theta: Inputs a transformation matrix
+        theta (tensor): predicted deformation matrix
     Returns:
-        A 3d affine grid that is used lated for transformation
+        A 3d affine grid that is used for transformation
         Return size: [B, D, H, W, 3]
     """
     B, C, D, H, W = size  # Extract dimensions of the input
@@ -24,18 +24,17 @@ def affine_grid_3d(size, theta):
     return grid
 
 
-def affine_transform(data, theta):
+def affine_transform(moving_patch, theta):
     """ Performs an affine transform of some input data with a transformation matrix theta
     Args:
-        data: input the volume data that is to be transformed
-        theta: transformation matrix to do the transformation
+        data (tensor): input the volume data that is to be transformed
+        theta (tensor): predicted deformation matrix
     Returns:
         Transformed input data that is transformed with the transformation matrix.
-        shape: [B, C, D, H, W]
     """
-    B, C, D, H, W = data.shape  # Extracting the dimensions
+    B, C, D, H, W = moving_patch.shape  # Extracting the dimensions
 
     grid_3d = affine_grid_3d((B, C, D, H, W), theta)
-    warped_patches = F.grid_sample(data, grid_3d, padding_mode='border')  # alternatives: 'border', 'zeros', 'reflection'
+    warped_patches = F.grid_sample(moving_patch, grid_3d, padding_mode='border')  # (padding_mode opt: 'border', 'zeros', 'reflection')
 
     return warped_patches
