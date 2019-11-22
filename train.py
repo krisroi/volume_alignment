@@ -214,14 +214,17 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
     net = Net().to(device)
 
     criterion = NCC().to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
+    optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=1e-2)
+    #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
     moving_training_patches = moving_patches[0:math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)), :]
 
     fixed_validation_patches = fixed_patches[math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)):fixed_patches.shape[0], :]
     moving_validation_patches = moving_patches[math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)):moving_patches.shape[0], :]
+
+    train_range = range(0, math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)))
+    val_range = range(math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), fixed_patches.shape[0])
 
     print('Number of training samples: ', fixed_training_patches.shape[0])
     print('Number of validation samples: ', fixed_validation_patches.shape[0])
@@ -237,12 +240,13 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
     for epoch in range(epochs):
 
         # Train model
+        net.train()
         training_loss = train(fixed_training_patches,
                               moving_training_patches,
                               epoch,
                               epochs,
                               batch_size,
-                              net.train(),
+                              net,
                               criterion,
                               optimizer,
                               device,
@@ -250,24 +254,26 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
 
         # Validate model
         with torch.no_grad():
+            net.eval()
             validation_loss = validate(fixed_validation_patches,
                                        moving_validation_patches,
                                        epoch,
                                        epochs,
                                        batch_size,
-                                       net.eval(),
+                                       net,
                                        criterion,
                                        device
                                        )
 
-        scheduler.step()
+        #scheduler.step()
 
         epoch_train_loss[epoch] = torch.mean(training_loss)
         epoch_validation_loss[epoch] = torch.mean(validation_loss)
 
-        cur_state_dict = net.state_dict()
-        model_info = {'patch_size': fixed_training_patches.shape[2],
-                      'state_dict': cur_state_dict}
+        model_info = {'model_state_dict': net.state_dict(),
+                      'optimizer_state_dict': optimizer.state_dict(),
+                      'epoch': epoch
+                      }
         torch.save(model_info, model_name)
 
         print('Epoch: {}/{} \t Training_loss: {} \t Validation loss: {}'
@@ -291,7 +297,7 @@ if __name__ == '__main__':
     epochs = 1  # number of epochs
     tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
-    batch_size = 2
+    batch_size = 8
     patch_size = 50
     stride = 100
     voxelsize = 7.0000003e-4
@@ -334,13 +340,8 @@ if __name__ == '__main__':
     print('Training runtime: ', datetime.now() - training_start_time)
     print('\n')
 
-    with torch.no_grad():
-        prediction_start_time = datetime.now()
-        predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name)
-        print('Prediction runtime: ', datetime.now() - prediction_start_time)
-        print('\n')
-
     print('Total runtime: ', datetime.now() - start_time)
 
     print('End training loss: ', training_loss)
     print('End validation loss: ', validation_loss)
+    print('Model name: ', model_name)
