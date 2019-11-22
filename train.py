@@ -110,15 +110,15 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     print('Finished creating patches')
 
+    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+
     shuffler = CreateDataset(fixed_patches, moving_patches)
     del fixed_patches, moving_patches
     shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
     del shuffler
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-
-    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
-    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
 
     print('Shuffling patches ...')
 
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     validation_set_ratio = 0.2
     batch_size = 32
     patch_size = 50
-    stride = 50
+    stride = 70
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
