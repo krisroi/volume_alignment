@@ -132,13 +132,13 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     print('\n')
 
     prediction_set = CreatePredictionSet(fixed_patches, moving_patches, loc)
-    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False, drop_last=False)
+    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
     print('Predicting')
 
-    for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
+    for batch_idx, (fixed_batch, _, loc) in enumerate(prediction_loader):
 
         printer = progress_printer((batch_idx + 1) / len(prediction_loader))
         print(printer, end='\r')
@@ -146,7 +146,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 12]).type(dtype)
         loc_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 3]).type(dtype)
 
-        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        moving_batch = moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
         predicted_theta = predicted_theta.view(-1, 12)
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     model_name = str(sys.argv[1]) # Run predict with modelname from training as argument
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 50
-    stride = 50
+    stride = 70
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
     batch_size = 32
