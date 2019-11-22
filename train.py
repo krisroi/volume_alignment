@@ -98,7 +98,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         vol_data.cpu()
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
-        patched_vol_data = patched_vol_data
+        patched_vol_data = patched_vol_data.to(device)
 
         fixed_patches = torch.cat((fixed_patches, patched_vol_data[:, 0, :]))
         moving_patches = torch.cat((moving_patches, patched_vol_data[:, 1, :]))
@@ -113,13 +113,13 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
     del fixed_patches, moving_patches
-    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=False)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
     del shuffler
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
-    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
+    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
 
     print('Shuffling patches ...')
 
