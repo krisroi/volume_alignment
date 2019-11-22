@@ -132,7 +132,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     print('\n')
 
     prediction_set = CreatePredictionSet(fixed_patches, moving_patches, loc)
-    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True, drop_last=False)
+    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False, drop_last=False)
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
