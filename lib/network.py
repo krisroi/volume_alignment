@@ -38,11 +38,11 @@ class Net(nn.Module):
 
         self.sampler1 = nn.Sequential(
             nn.Conv3d(1, 8, kernel_size=5),
-            nn.BatchNorm3d(8, track_running_stats=False, momentum=0.01),
+            nn.BatchNorm3d(8, track_running_stats=False),
             nn.MaxPool3d(2, stride=2),
             nn.ReLU(True),
             nn.Conv3d(8, 16, kernel_size=4),
-            nn.BatchNorm3d(16, track_running_stats=False, momentum=0.01),
+            nn.BatchNorm3d(16, track_running_stats=False),
             nn.MaxPool3d(2, stride=2),
             nn.ReLU(True)
         )
@@ -63,7 +63,7 @@ class Net(nn.Module):
 
         self.sampler2 = nn.Sequential(
             nn.Conv3d(16, 32, kernel_size=5),
-            nn.BatchNorm3d(32, track_running_stats=False, momentum=0.01),
+            nn.BatchNorm3d(32, track_running_stats=False),
             nn.MaxPool3d(2, stride=2),
             nn.ReLU(True)
         )

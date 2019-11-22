@@ -98,17 +98,23 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         vol_data.cpu()
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
-        patched_vol_data = patched_vol_data.to(device)
+        patched_vol_data = patched_vol_data
 
         fixed_patches = torch.cat((fixed_patches, patched_vol_data[:, 0, :]))
         moving_patches = torch.cat((moving_patches, patched_vol_data[:, 1, :]))
+
+        del patched_vol_data
+        torch.cuda.empty_cache() if torch.cuda.is_available()
 
     print(fixed_patches.shape)
 
     print('Finished creating patches')
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
+    del fixed_patches, moving_patches
     shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=False)
+    del shuffler
+    torch.cuda.empty_cache() if torch.cuda.is_available()
 
     shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
     shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
@@ -214,7 +220,7 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
     net = Net().to(device)
 
     criterion = NCC().to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=1e-2)
+    optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=1e-6)
     #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
@@ -294,12 +300,12 @@ if __name__ == '__main__':
 
     #=======================PARAMETERS==========================#
     lr = 1e-2  # learning rate
-    epochs = 1  # number of epochs
+    epochs = 3  # number of epochs
     tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
-    batch_size = 8
+    batch_size = 32
     patch_size = 50
-    stride = 100
+    stride = 50
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
@@ -309,11 +315,11 @@ if __name__ == '__main__':
     date = now.strftime('%d%m%Y')
     time = now.strftime('%H%M%S')
 
-    model_name = 'output/discard/model_{}_{}.pt'.format(date, time)
-    path_to_lossfile = 'output/discard/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
+    model_name = 'output/models/model_{}_{}.pt'.format(date, time)
+    path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
-    path_to_h5files = '/users/kristofferroise/project/patient_data_proc/'
-    path_to_infofile = '/users/kristofferroise/project/Diverse/'
+    path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
+    path_to_infofile = '/mnt/EncryptedFastData/krisroi/'
     info_filename = 'dataset_information.csv'
     #===========================================================#
 

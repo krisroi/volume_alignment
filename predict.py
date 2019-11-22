@@ -155,13 +155,13 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp[batch_idx] = predicted_theta.type(dtype)
         loc_tmp[batch_idx] = loc.type(dtype)
 
-        with open(loc_path, 'a') as lctn:
-            lctn_writer = csv.writer(lctn, delimiter=',')
-            lctn_writer.writerows((loc_tmp[batch_idx].cpu().numpy().round(5)))
+    with open(loc_path, 'a') as lctn:
+        lctn_writer = csv.writer(lctn, delimiter=',')
+        lctn_writer.writerows((loc_tmp.cpu().numpy().round(5)))
 
-        with open(theta_path, 'a') as tht:
-            theta_writer = csv.writer(tht)
-            theta_writer.writerows((predicted_theta_tmp[batch_idx].cpu().numpy()))
+    with open(theta_path, 'a') as tht:
+        theta_writer = csv.writer(tht)
+        theta_writer.writerows((predicted_theta_tmp.cpu().numpy()))
 
 
     print('\n')
@@ -173,12 +173,12 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 
     model_name = str(sys.argv[1]) # Run predict with modelname from training as argument
-    path_to_h5files = '/users/kristofferroise/project/patient_data_proc/'
+    path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 50
-    stride = 100
+    stride = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
-    batch_size = 8
+    batch_size = 32
 
     with torch.no_grad():
         prediction_start_time = datetime.now()
