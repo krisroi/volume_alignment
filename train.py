@@ -95,6 +95,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         vol_data = HDF5Image(path_to_h5files, fix_set[set_idx], mov_set[set_idx],
                              fix_vols[set_idx], mov_vols[set_idx])
         vol_data.normalize()
+        vol_data.histogram_equalization()
         vol_data.cpu()
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
@@ -316,9 +317,9 @@ if __name__ == '__main__':
     date = now.strftime('%d%m%Y')
     time = now.strftime('%H%M%S')
 
-    model_name = 'output/models/model_test.pt'
+    model_name = 'output/models/model_test_histeq.pt'
     #model_name = 'output/models/model_{}_{}.pt'.format(date, time)
-    path_to_lossfile = 'output/txtfiles/avg_loss_test.csv'
+    path_to_lossfile = 'output/txtfiles/avg_loss_test_histeq.csv'
     #path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
