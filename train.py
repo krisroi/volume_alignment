@@ -48,7 +48,7 @@ def progress_printer(percentage):
     """
     eq = '=====================>'
     dots = '......................'
-    printer = '[{}{}]'.format(eq[len(eq) - math.ceil(percentage*20):len(eq)], dots[2:len(eq) - math.ceil(percentage*20)])
+    printer = '[{}{}]'.format(eq[len(eq) - math.ceil(percentage * 20):len(eq)], dots[2:len(eq) - math.ceil(percentage * 20)])
     return printer
 
 
@@ -89,7 +89,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     for set_idx in range(len(fix_set)):
 
-        printer = progress_printer(set_idx/len(fix_set))
+        printer = progress_printer(set_idx / len(fix_set))
         print(printer, end='\r')
 
         vol_data = HDF5Image(path_to_h5files, fix_set[set_idx], mov_set[set_idx],
@@ -124,7 +124,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     for batch_idx, (fixed_patches, moving_patches) in enumerate(shuffle_loader):
 
-        printer = progress_printer(batch_idx/len(shuffle_loader))
+        printer = progress_printer(batch_idx / len(shuffle_loader))
         print(printer, end='\r')
 
         shuffled_fixed_patches[batch_idx, :] = fixed_patches
@@ -221,7 +221,7 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
     net = Net().to(device)
 
     criterion = NCC().to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=1e-6)
+    optimizer = optim.SGD(net.parameters(), lr=lr)
     #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
@@ -272,7 +272,7 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
                                        device
                                        )
 
-        #scheduler.step()
+        # scheduler.step()
 
         epoch_train_loss[epoch] = torch.mean(training_loss)
         epoch_validation_loss[epoch] = torch.mean(validation_loss)
@@ -301,12 +301,12 @@ if __name__ == '__main__':
 
     #=======================PARAMETERS==========================#
     lr = 1e-2  # learning rate
-    epochs = 3  # number of epochs
+    epochs = 100  # number of epochs
     tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
     batch_size = 32
     patch_size = 50
-    stride = 70
+    stride = 23
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
@@ -316,8 +316,10 @@ if __name__ == '__main__':
     date = now.strftime('%d%m%Y')
     time = now.strftime('%H%M%S')
 
-    model_name = 'output/models/model_{}_{}.pt'.format(date, time)
-    path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
+    model_name = 'output/models/model_test.pt'
+    #model_name = 'output/models/model_{}_{}.pt'.format(date, time)
+    path_to_lossfile = 'output/txtfiles/avg_loss_test.csv'
+    #path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     path_to_infofile = '/mnt/EncryptedFastData/krisroi/'

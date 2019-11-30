@@ -35,6 +35,7 @@ class CreatePredictionSet(Dataset):
     def __getitem__(self, idx):
         return self.fixed_patches[idx, :], self.moving_patches[idx, :], self.patch_location[idx, :]
 
+
 def progress_printer(percentage):
     """Function returning a progress bar
         Args:
@@ -42,7 +43,7 @@ def progress_printer(percentage):
     """
     eq = '=====================>'
     dots = '......................'
-    printer = '[{}{}]'.format(eq[len(eq) - math.ceil(percentage*20):len(eq)], dots[2:len(eq) - math.ceil(percentage*20)])
+    printer = '[{}{}]'.format(eq[len(eq) - math.ceil(percentage * 20):len(eq)], dots[2:len(eq) - math.ceil(percentage * 20)])
     return printer
 
 
@@ -69,11 +70,12 @@ def generate_patches(path_to_h5files, patch_size, stride, device, voxelsize):
     print('Creating patches ... ')
 
     vol_data = HDF5Image(path_to_h5files, fix_set, mov_set,
-                             fix_vols, mov_vols)
+                         fix_vols, mov_vols)
     vol_data.normalize()
     vol_data.cpu()
 
     patched_vol_data, loc = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
+    patched_vol_data = patched_vol_data
 
     fixed_patches = patched_vol_data[:, 0, :].unsqueeze(1)
     moving_patches = patched_vol_data[:, 1, :].unsqueeze(1)
@@ -91,13 +93,12 @@ def create_net(model_name, device):
 
     print('Loading weights ...')
     model = torch.load(model_name)
-    net.load_state_dict(model['model_state_dict'])
+    net.load_state_dict(model['state_dict'])
 
     return net.eval()
 
 
 def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size):
-
     """Predict global transformation on a prediction set
         Args:
             path_to_h5files (string): absolute path to folder holding .h5 files
@@ -108,12 +109,9 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
             model_name (string): absolute path to model
             batch_size(int)
     """
-    net = create_net(model_name, device)
 
-    model_name = os.path.splitext(model_name)[0] # Remove extension to save only model name with prediction
-
-    loc_path = 'output/txtfiles/{}_loc_prediction.csv'.format(model_name.rsplit('/', 1)[-1]) # Path to location prediction with model name
-    theta_path = 'output/txtfiles/{}_theta_prediction.csv'.format(model_name.rsplit('/', 1)[-1]) # Path to theta prediction with model name
+    loc_path = 'output/txtfiles/loc_prediction.csv'
+    theta_path = 'output/txtfiles/theta_prediction.csv'
 
     with open(loc_path, 'w') as lctn:
         fieldnames = ['x_pos', 'y_pos', 'z_pos']
@@ -124,6 +122,8 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         fieldnames = ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
         field_writer = csv.DictWriter(tht, fieldnames=fieldnames)
         field_writer.writeheader()
+
+    net = create_net(model_name, device)
 
     fixed_patches, moving_patches, loc = generate_patches(path_to_h5files, patch_size, stride, device, voxelsize)
 
@@ -138,7 +138,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
     print('Predicting')
 
-    for batch_idx, (fixed_batch, _, loc) in enumerate(prediction_loader):
+    for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
 
         printer = progress_printer((batch_idx + 1) / len(prediction_loader))
         print(printer, end='\r')
@@ -146,7 +146,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 12]).type(dtype)
         loc_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 3]).type(dtype)
 
-        moving_batch = moving_batch.to(device)
+        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
         predicted_theta = predicted_theta.view(-1, 12)
@@ -154,14 +154,13 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp[batch_idx] = predicted_theta.type(dtype)
         loc_tmp[batch_idx] = loc.type(dtype)
 
-    with open(loc_path, 'a') as lctn:
-        lctn_writer = csv.writer(lctn, delimiter=',')
-        lctn_writer.writerows((loc_tmp.cpu().numpy().round(5)))
+        with open(loc_path, 'a') as lctn:
+            lctn_writer = csv.writer(lctn, delimiter=',')
+            lctn_writer.writerows((loc_tmp[batch_idx].cpu().numpy().round(5)))
 
-    with open(theta_path, 'a') as tht:
-        theta_writer = csv.writer(tht)
-        theta_writer.writerows((predicted_theta_tmp.cpu().numpy()))
-
+        with open(theta_path, 'a') as tht:
+            theta_writer = csv.writer(tht)
+            theta_writer.writerows((predicted_theta_tmp[batch_idx].cpu().numpy()))
 
     print('\n')
 
@@ -171,7 +170,7 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 
-    model_name = str(sys.argv[1]) # Run predict with modelname from training as argument
+    model_name = str(sys.argv[1])  # Run predict with modelname from training as argument
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 50
     stride = 70
