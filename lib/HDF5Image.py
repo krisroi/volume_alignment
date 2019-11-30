@@ -61,15 +61,14 @@ class HDF5Image():
         self.data = torch.div(self.data, torch.max(self.data))
 
     def histogram_equalization(self):
-        """Performes histogram equalization on the volume_data
-        """
-        data = self.data.numpy().astype('float64')
+        # Preforms a histogram_equalization to the data.
+        data = self.data.numpy().astype('uint8')
         for i in range(data.shape[0]):
-            hist, bins = np.histogram(data[i].flatten(), 1.0, [0.0, 1.0])
+            hist, bins = np.histogram(data[i].flatten(), 256, [0, 256])
             cdf = hist.cumsum()
-            cdf_m = np.ma.masked_equal(cdf, 0.0)
-            cdf_m = (cdf_m - cdf_m.min()) * 1.0 / (cdf_m.max() - cdf_m.min())
-            cdf = np.ma.filled(cdf_m, 0.0).astype('float64')
+            cdf_m = np.ma.masked_equal(cdf, 0)
+            cdf_m = (cdf_m - cdf_m.min()) * 255 / (cdf_m.max() - cdf_m.min())
+            cdf = np.ma.filled(cdf_m, 0).astype('uint8')
             data[i] = cdf[data[i]]
         self.data = torch.from_numpy(data).float()
 
