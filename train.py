@@ -94,8 +94,8 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
         vol_data = HDF5Image(path_to_h5files, fix_set[set_idx], mov_set[set_idx],
                              fix_vols[set_idx], mov_vols[set_idx])
-        vol_data.normalize()
         vol_data.histogram_equalization()
+        vol_data.normalize()
         vol_data.cpu()
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
