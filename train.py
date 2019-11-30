@@ -306,7 +306,7 @@ if __name__ == '__main__':
     validation_set_ratio = 0.2
     batch_size = 32
     patch_size = 60
-    stride = 23
+    stride = 20
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
