@@ -20,11 +20,11 @@ class Net(nn.Module):
             nn.BatchNorm3d(8, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
-            nn.Conv3d(8, 16, kernel_size=4),
+            nn.Conv3d(8, 16, kernel_size=5),
             nn.BatchNorm3d(16, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
-            nn.Conv3d(16, 32, kernel_size=3),
+            nn.Conv3d(16, 32, kernel_size=5),
             nn.BatchNorm3d(32, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
@@ -40,7 +40,7 @@ class Net(nn.Module):
             nn.BatchNorm3d(8, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
-            nn.Conv3d(8, 16, kernel_size=4),
+            nn.Conv3d(8, 16, kernel_size=5),
             nn.BatchNorm3d(16, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2)
@@ -52,14 +52,14 @@ class Net(nn.Module):
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
             nn.Flatten(),
-            nn.Linear(32 * 3 * 3 * 3, 256),
+            nn.Linear(32 * 4 * 4 * 4, 256),
             nn.BatchNorm1d(256, track_running_stats=True),
             nn.ReLU(True),
             nn.Linear(256, 3 * 4)
         )
 
         self.sampler2 = nn.Sequential(
-            nn.Conv3d(16, 32, kernel_size=3),
+            nn.Conv3d(16, 32, kernel_size=5),
             nn.BatchNorm3d(32, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2)
