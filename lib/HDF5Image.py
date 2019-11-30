@@ -1,5 +1,6 @@
 import h5py
 import torch
+import numpy as np
 
 
 class HDF5Image():
