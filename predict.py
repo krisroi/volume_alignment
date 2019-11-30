@@ -93,7 +93,7 @@ def create_net(model_name, device):
 
     print('Loading weights ...')
     model = torch.load(model_name)
-    net.load_state_dict(model['state_dict'])
+    net.load_state_dict(model['model_state_dict'])
 
     return net.eval()
 
