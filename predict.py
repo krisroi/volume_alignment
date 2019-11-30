@@ -137,6 +137,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
     print('Predicting')
+    prediction_start_time = datetime.now()
 
     for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
 
@@ -162,7 +163,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
             theta_writer = csv.writer(tht)
             theta_writer.writerows((predicted_theta_tmp[batch_idx].cpu().numpy()))
 
-    print('\n')
+    print('Prediction runtime: ', datetime.now() - prediction_start_time)
 
 
 if __name__ == '__main__':
@@ -179,7 +180,5 @@ if __name__ == '__main__':
     batch_size = 32
 
     with torch.no_grad():
-        prediction_start_time = datetime.now()
         predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size)
-        print('Prediction runtime: ', datetime.now() - prediction_start_time)
         print('\n')
