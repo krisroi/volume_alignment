@@ -75,7 +75,7 @@ def generate_patches(path_to_h5files, patch_size, stride, device, voxelsize):
     vol_data.cpu()
 
     patched_vol_data, loc = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
-    patched_vol_data = patched_vol_data
+    patched_vol_data = patched_vol_data.to(device)
 
     fixed_patches = patched_vol_data[:, 0, :].unsqueeze(1)
     moving_patches = patched_vol_data[:, 1, :].unsqueeze(1)
@@ -132,7 +132,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     print('\n')
 
     prediction_set = CreatePredictionSet(fixed_patches, moving_patches, loc)
-    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
+    prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False, drop_last=False)
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
@@ -146,7 +146,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 12]).type(dtype)
         loc_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 3]).type(dtype)
 
-        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
         predicted_theta = predicted_theta.view(-1, 12)
