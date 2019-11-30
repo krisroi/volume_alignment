@@ -172,8 +172,8 @@ if __name__ == '__main__':
 
     model_name = str(sys.argv[1])  # Run predict with modelname from training as argument
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
-    patch_size = 50
-    stride = 70
+    patch_size = 60
+    stride = 20
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
     batch_size = 32
