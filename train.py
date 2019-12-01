@@ -35,6 +35,8 @@ class CreateDataset(Dataset):
         self.fixed_patches = fixed_patches
         self.moving_patches = moving_patches
 
+        del fixed_patches, moving_patches
+
     def __len__(self):
         return self.fixed_patches.shape[0]
 
