@@ -172,6 +172,9 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
 if __name__ == '__main__':
 
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 

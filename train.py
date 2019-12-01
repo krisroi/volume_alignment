@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.optim as optim
 import numpy as np
+import os
 import math
 import csv
 from datetime import datetime
@@ -302,6 +303,10 @@ if __name__ == '__main__':
 
     torch.manual_seed(0)
     np.random.seed(0)
+
+    # Choose GPU device (0 or 1 available)
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
