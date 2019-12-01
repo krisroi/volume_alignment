@@ -181,7 +181,7 @@ if __name__ == '__main__':
     stride = 20
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
-    batch_size = 64
+    batch_size = 320
 
     with torch.no_grad():
         predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size)
