@@ -123,8 +123,6 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
     net = create_net(model_name, device)
 
-    print("net is cuda: ", net.is_cuda)
-
     prediction_start_time = datetime.now()
 
     fixed_patches, moving_patches, loc = generate_patches(path_to_h5files, patch_size, stride, device, voxelsize)
