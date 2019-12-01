@@ -134,7 +134,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
         del fixed_patches, moving_patches
         if torch.cuda.is_available():
-            toch.cuda.empty_cache()
+            torch.cuda.empty_cache()
 
     print('Finished shuffling patches')
     print('\n')
