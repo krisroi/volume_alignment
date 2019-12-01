@@ -125,14 +125,18 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
     prediction_start_time = datetime.now()
 
+    patch_gen = datetime.now()
     fixed_patches, moving_patches, loc = generate_patches(path_to_h5files, patch_size, stride, device, voxelsize)
+    print('Patch generation runtime: ', datetime.now() - patch_gen)
 
     print('\n')
     print('Number of prediction samples: {}'.format(fixed_patches.shape[0]))
     print('\n')
 
+    loader_rt = datetime.now()
     prediction_set = CreatePredictionSet(fixed_patches, moving_patches, loc)
     prediction_loader = DataLoader(prediction_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False, drop_last=False)
+    print('Loader runtime: ', datetime.now() - loader_rt)
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
@@ -146,7 +150,10 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         printer = progress_printer((batch_idx + 1) / len(prediction_loader))
         print(printer, end='\r')
 
+        net_rt = datetime.now()
         predicted_theta = net(moving_batch)
+        print('Net runtime: ', datetime.now() - net_rt)
+
         predicted_theta = predicted_theta.view(-1, 12)
 
         predicted_theta_tmp = predicted_theta.type(dtype)
