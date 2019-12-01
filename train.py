@@ -105,22 +105,18 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         moving_patches = torch.cat((moving_patches, patched_vol_data[:, 1, :]))
 
         del patched_vol_data
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     print(fixed_patches.shape)
 
     print('Finished creating patches')
 
-    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
-    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
+    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).cpu()
+    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).cpu()
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
     del fixed_patches, moving_patches
-    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=False)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
     del shuffler
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
     print('Shuffling patches ...')
 
@@ -133,11 +129,11 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         shuffled_moving_patches[batch_idx, :] = moving_patches
 
         del fixed_patches, moving_patches
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     print('Finished shuffling patches')
     print('\n')
+
+    print("Shuf is cuda: ", shuffled_fixed_patches.is_cuda)
 
     return shuffled_fixed_patches.unsqueeze(1), shuffled_moving_patches.unsqueeze(1)
 
@@ -158,13 +154,13 @@ def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, crit
     """
 
     validation_set = CreateDataset(fixed_patches, moving_patches)
-    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
     validation_loss = torch.zeros(len(validation_loader), device=device)
 
     for batch_idx, (fixed_batch, moving_batch) in enumerate(validation_loader):
 
-        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
         predicted_deform = affine_transform(moving_batch, predicted_theta)
@@ -198,13 +194,13 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
     """
 
     train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True, drop_last=True)
 
     training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
 
     for batch_idx, (fixed_batch, moving_batch) in enumerate(train_loader):
 
-        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         optimizer.zero_grad()
 
