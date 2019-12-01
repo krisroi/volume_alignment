@@ -69,8 +69,8 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
             moving patches: all moving patches in the dataset ([num_patches, 1, **patch_size])
     """
 
-    fixed_patches = torch.tensor([]).to(device)
-    moving_patches = torch.tensor([]).to(device)
+    fixed_patches = torch.tensor([]).cpu()
+    moving_patches = torch.tensor([]).cpu()
 
     dataset = GetDatasetInformation(path_to_infofile, info_filename)
 
@@ -99,6 +99,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         vol_data.to(device)
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
+        patched_vol_data = patched_vol_data.cpu()
 
         fixed_patches = torch.cat((fixed_patches, patched_vol_data[:, 0, :]))
         moving_patches = torch.cat((moving_patches, patched_vol_data[:, 1, :]))
