@@ -125,6 +125,8 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
     net = create_net(model_name, device)
 
+    prediction_start_time = datetime.now()
+
     fixed_patches, moving_patches, loc = generate_patches(path_to_h5files, patch_size, stride, device, voxelsize)
 
     print('\n')
@@ -141,16 +143,12 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     predicted_theta_tmp = torch.zeros([len(prediction_loader), int(fixed_patches.shape[0] / batch_size), 12]).type(dtype).to(device)
     loc_tmp = torch.zeros([len(prediction_loader), int(fixed_patches.shape[0] / batch_size), 3]).type(dtype).to(device)
 
-    prediction_start_time = datetime.now()
-
     for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
 
-        #printer = progress_printer((batch_idx + 1) / len(prediction_loader))
-        #print(printer, end='\r')
+        printer = progress_printer((batch_idx + 1) / len(prediction_loader))
+        print(printer, end='\r')
 
-        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
-
-        # print(fixed_batch.is_cuda)
+        print(fixed_batch.is_cuda)
 
         predicted_theta = net(moving_batch)
         predicted_theta = predicted_theta.view(-1, 12)
@@ -158,15 +156,13 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta_tmp[batch_idx] = predicted_theta.type(dtype)
         loc_tmp[batch_idx] = loc.type(dtype)
 
-        '''with open(loc_path, 'a') as lctn:
+        with open(loc_path, 'a') as lctn:
             lctn_writer = csv.writer(lctn, delimiter=',')
             lctn_writer.writerows((loc_tmp[batch_idx].cpu().numpy().round(5)))
-        '''
-        '''
+
         with open(theta_path, 'a') as tht:
             theta_writer = csv.writer(tht)
             theta_writer.writerows((predicted_theta_tmp[batch_idx].cpu().numpy()))
-        '''
 
     print('Prediction runtime: ', datetime.now() - prediction_start_time)
 

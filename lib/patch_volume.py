@@ -103,7 +103,7 @@ def create_patches(data, patch_size, stride, device, voxelsize):
     data_size = data.shape
 
     flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
-    flat_idx_select = torch.zeros(flat_idx.size()).to(device)
+    flat_idx_select = torch.zeros(flat_idx.size())
 
     for patch_idx in range(1, flat_idx.size()[0]):
         patch_pos = idx2pos_4D(flat_idx[patch_idx], data_size[1:])
