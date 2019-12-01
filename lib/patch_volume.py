@@ -103,7 +103,7 @@ def create_patches(data, patch_size, stride, device, voxelsize):
     data_size = data.shape
 
     flat_idx = calculatePatchIdx3D(1, patch_size * torch.ones(3), data_size[1:], stride * torch.ones(3))
-    flat_idx_select = torch.zeros(flat_idx.size())
+    flat_idx_select = torch.zeros(flat_idx.size()).to(device)
 
     for patch_idx in range(1, flat_idx.size()[0]):
         patch_pos = idx2pos_4D(flat_idx[patch_idx], data_size[1:])
@@ -117,14 +117,14 @@ def create_patches(data, patch_size, stride, device, voxelsize):
                                  patch_pos[2]:patch_pos[2] + patch_size,
                                  patch_pos[3]:patch_pos[3] + patch_size]
 
-        fix_on = torch.ones(fixed_patch.shape)
-        fix_off = torch.zeros(fixed_patch.shape)
-        mov_on = torch.ones(moving_patch.shape)
-        mov_off = torch.zeros(moving_patch.shape)
+        fix_on = torch.ones(fixed_patch.shape).to(device)
+        fix_off = torch.zeros(fixed_patch.shape).to(device)
+        mov_on = torch.ones(moving_patch.shape).to(device)
+        mov_off = torch.zeros(moving_patch.shape).to(device)
 
         # Checking for non-zero data
-        fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off)
-        moving_on = torch.where(moving_patch != 0, mov_on, mov_off)
+        fixed_on = torch.where(fixed_patch != 0, fix_on, fix_off).to(device)
+        moving_on = torch.where(moving_patch != 0, mov_on, mov_off).to(device)
 
         threshold = 0.7
 
@@ -135,11 +135,11 @@ def create_patches(data, patch_size, stride, device, voxelsize):
     flat_idx_select = flat_idx_select.bool()
     flat_idx = torch.masked_select(flat_idx, flat_idx_select)
 
-    patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size)
+    patched_data = torch.zeros(flat_idx.shape[0], 2, patch_size, patch_size, patch_size).to(device)
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-    loc = torch.zeros([len(flat_idx), 3]).type(dtype)
+    loc = torch.zeros([len(flat_idx), 3]).type(dtype).to(device)
 
     for slices in range(flat_idx.shape[0]):
         patch_pos = idx2pos_4D(flat_idx[slices], data_size[1:])

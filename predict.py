@@ -72,7 +72,7 @@ def generate_patches(path_to_h5files, patch_size, stride, device, voxelsize):
     vol_data = HDF5Image(path_to_h5files, fix_set, mov_set,
                          fix_vols, mov_vols)
     vol_data.normalize()
-    vol_data.cpu()
+    vol_data.to(device)
 
     patched_vol_data, loc = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
     patched_vol_data = patched_vol_data.to(device)
@@ -137,6 +137,10 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
     print('Predicting')
+
+    predicted_theta_tmp = torch.zeros([len(prediction_loader), int(fixed_patches.shape[0] / batch_size), 12]).type(dtype).to(device)
+    loc_tmp = torch.zeros([len(prediction_loader), int(fixed_patches.shape[0] / batch_size), 3]).type(dtype).to(device)
+
     prediction_start_time = datetime.now()
 
     for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
@@ -144,12 +148,9 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         #printer = progress_printer((batch_idx + 1) / len(prediction_loader))
         #print(printer, end='\r')
 
-        predicted_theta_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 12]).type(dtype).to(device)
-        loc_tmp = torch.zeros([len(prediction_loader), fixed_batch.shape[0], 3]).type(dtype).to(device)
-
         #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
-        #print(fixed_batch.is_cuda)
+        # print(fixed_batch.is_cuda)
 
         predicted_theta = net(moving_batch)
         predicted_theta = predicted_theta.view(-1, 12)
@@ -167,7 +168,6 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
             theta_writer.writerows((predicted_theta_tmp[batch_idx].cpu().numpy()))
         '''
 
-
     print('Prediction runtime: ', datetime.now() - prediction_start_time)
 
 
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     stride = 20
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
-    batch_size = 128
+    batch_size = 64
 
     with torch.no_grad():
         predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size)
