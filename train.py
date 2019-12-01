@@ -115,7 +115,7 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
     del fixed_patches, moving_patches
-    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=1, pin_memory=True)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=1, pin_memory=False)
     del shuffler
 
     print('Shuffling patches ...')
