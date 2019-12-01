@@ -68,8 +68,8 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
             moving patches: all moving patches in the dataset ([num_patches, 1, **patch_size])
     """
 
-    fixed_patches = torch.tensor([])
-    moving_patches = torch.tensor([])
+    fixed_patches = torch.tensor([]).to(device)
+    moving_patches = torch.tensor([]).to(device)
 
     dataset = GetDatasetInformation(path_to_infofile, info_filename)
 
@@ -94,9 +94,8 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
         vol_data = HDF5Image(path_to_h5files, fix_set[set_idx], mov_set[set_idx],
                              fix_vols[set_idx], mov_vols[set_idx])
-        vol_data.histogram_equalization()
         vol_data.normalize()
-        vol_data.cpu()
+        vol_data.to(device)
 
         patched_vol_data, _ = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
 
@@ -111,12 +110,12 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
 
     print('Finished creating patches')
 
-    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
-    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size))
+    shuffled_fixed_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
+    shuffled_moving_patches = torch.zeros((fixed_patches.shape[0], patch_size, patch_size, patch_size)).to(device)
 
     shuffler = CreateDataset(fixed_patches, moving_patches)
     del fixed_patches, moving_patches
-    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
+    shuffle_loader = DataLoader(shuffler, batch_size=1, shuffle=True, num_workers=0, pin_memory=False)
     del shuffler
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -131,10 +130,14 @@ def generate_patches(path_to_infofile, info_filename, path_to_h5files,
         shuffled_fixed_patches[batch_idx, :] = fixed_patches
         shuffled_moving_patches[batch_idx, :] = moving_patches
 
+        del fixed_patches, moving_patches
+        if torch.cuda.is_available():
+            toch.cuda.empty_cache()
+
     print('Finished shuffling patches')
     print('\n')
 
-    return shuffled_fixed_patches.unsqueeze(1).cpu(), shuffled_moving_patches.unsqueeze(1).cpu()
+    return shuffled_fixed_patches.unsqueeze(1), shuffled_moving_patches.unsqueeze(1)
 
 
 def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criterion, device):
@@ -153,13 +156,13 @@ def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, crit
     """
 
     validation_set = CreateDataset(fixed_patches, moving_patches)
-    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False)
 
     validation_loss = torch.zeros(len(validation_loader), device=device)
 
     for batch_idx, (fixed_batch, moving_batch) in enumerate(validation_loader):
 
-        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         predicted_theta = net(moving_batch)
         predicted_deform = affine_transform(moving_batch, predicted_theta)
@@ -193,13 +196,13 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
     """
 
     train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False, drop_last=True)
 
     training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
 
     for batch_idx, (fixed_batch, moving_batch) in enumerate(train_loader):
 
-        fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
+        #fixed_batch, moving_batch = fixed_batch.to(device), moving_batch.to(device)
 
         optimizer.zero_grad()
 
@@ -297,6 +300,9 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
 
 if __name__ == '__main__':
 
+    torch.manual_seed(0)
+    np.random.seed(0)
+
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 
@@ -317,9 +323,9 @@ if __name__ == '__main__':
     date = now.strftime('%d%m%Y')
     time = now.strftime('%H%M%S')
 
-    model_name = 'output/models/model_test_histeq.pt'
+    model_name = 'output/models/model_test_GPU.pt'
     #model_name = 'output/models/model_{}_{}.pt'.format(date, time)
-    path_to_lossfile = 'output/txtfiles/avg_loss_test_histeq.csv'
+    path_to_lossfile = 'output/txtfiles/avg_loss_test_GPU.csv'
     #path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
