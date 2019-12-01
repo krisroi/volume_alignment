@@ -75,12 +75,10 @@ def generate_patches(path_to_h5files, patch_size, stride, device, voxelsize):
     vol_data.to(device)
 
     patched_vol_data, loc = create_patches(vol_data.data, patch_size, stride, device, voxelsize)
-    patched_vol_data = patched_vol_data.to(device)
 
-    fixed_patches = patched_vol_data[:, 0, :].unsqueeze(1)
-    moving_patches = patched_vol_data[:, 1, :].unsqueeze(1)
+    print("Patched vol_data cuda: ", patched_vol_data.is_cuda)
 
-    return fixed_patches, moving_patches, loc
+    return patched_vol_data[:, 0, :].unsqueeze(1), patched_vol_data[:, 1, :].unsqueeze(1), loc
 
 
 def create_net(model_name, device):
@@ -124,6 +122,8 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         field_writer.writeheader()
 
     net = create_net(model_name, device)
+
+    print("net is cuda: ", net.is_cuda)
 
     prediction_start_time = datetime.now()
 
