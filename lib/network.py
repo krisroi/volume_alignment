@@ -39,10 +39,12 @@ class Net(nn.Module):
             nn.Conv3d(1, 8, kernel_size=5),
             nn.BatchNorm3d(8, track_running_stats=True),
             nn.ReLU(True),
+            nn.Dropout(p=0.2),
             nn.MaxPool3d(2, stride=2),
             nn.Conv3d(8, 16, kernel_size=5),
             nn.BatchNorm3d(16, track_running_stats=True),
             nn.ReLU(True),
+            nn.Dropout(p=0.2),
             nn.MaxPool3d(2, stride=2)
         )
 
@@ -62,6 +64,7 @@ class Net(nn.Module):
             nn.Conv3d(16, 32, kernel_size=5),
             nn.BatchNorm3d(32, track_running_stats=True),
             nn.ReLU(True),
+            nn.Dropout(p=0.2),
             nn.MaxPool3d(2, stride=2)
         )
 
