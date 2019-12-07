@@ -159,7 +159,7 @@ def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, crit
     """
 
     validation_set = CreateDataset(fixed_patches, moving_patches)
-    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
 
     validation_loss = torch.zeros(len(validation_loader), device=device)
 
@@ -199,7 +199,7 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
     """
 
     train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
 
     training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
 
@@ -228,7 +228,13 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
     net = Net().to(device)
 
     criterion = NCC().to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr)
+    optimizer = optim.Adam([
+			    {'params': net.stn1.parameters(), 'lr': 1e-4},
+			    {'params': net.stn2.parameters(), 'lr': 1e-4},
+			    {'params': net.stn3.parameters(), 'lr': 1e-4},
+			    {'params': net.sampler1.parameters()},
+			    {'params': net.sampler2.parameters()}
+			    ], lr=lr)
     #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
@@ -314,13 +320,13 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 
     #=======================PARAMETERS==========================#
-    lr = 1e-2  # learning rate
-    epochs = 100  # number of epochs
+    lr = 1e-3  # learning rate
+    epochs = 150  # number of epochs
     tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
     batch_size = 32
     patch_size = 60
-    stride = 20
+    stride = 18
     voxelsize = 7.0000003e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #===========================================================#
@@ -330,9 +336,9 @@ if __name__ == '__main__':
     date = now.strftime('%d%m%Y')
     time = now.strftime('%H%M%S')
 
-    model_name = 'output/models/model_test_GPU.pt'
+    model_name = 'output/models/model_latest_GPURUN.pt'
     #model_name = 'output/models/model_{}_{}.pt'.format(date, time)
-    path_to_lossfile = 'output/txtfiles/avg_loss_test_GPU.csv'
+    path_to_lossfile = 'output/txtfiles/loss_latest_GPURUN.csv'
     #path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
