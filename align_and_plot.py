@@ -56,7 +56,9 @@ def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, 
     ax[1, 2].set_ylim([fixed_volume.shape[3], 0])
 
 
-def align(theta_file, path_to_h5files copper_alpha, gray_alpha):
+    plt.show()
+
+def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
 
     global_theta = torch.zeros([12])
 
@@ -93,4 +95,4 @@ if __name__ == '__main__':
     copper_alpha = 1
     gray_alpha = 1
 
-    align(theta_file, path_to_h5files, copper_alpha, gray_alpha)
+    align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha)
