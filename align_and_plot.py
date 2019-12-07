@@ -52,11 +52,11 @@ def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, 
 
     ax[1, 2].imshow(fixed_zslice, origin='right', cmap='copper', alpha=copper_alpha)
     ax[1, 2].imshow(warped_zslice, origin='right', cmap='gray', alpha=gray_alpha)
-    ax[1, 2].set_xlim([0, fixed_volume.shape[1]])
+    ax[1, 2].set_xlim([0, fixed_volume.shape[2]])
     ax[1, 2].set_ylim([fixed_volume.shape[3], 0])
 
-
     plt.show()
+
 
 def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     theta_file = 'output/txtfiles/res.txt'
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
 
-    copper_alpha = 1
-    gray_alpha = 1
+    copper_alpha = 0.99
+    gray_alpha = 0.7
 
     align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha)
