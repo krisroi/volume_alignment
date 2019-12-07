@@ -19,7 +19,7 @@ end
 
 %lax1
 slice1 = squeeze(hdfdata1.CartesianVolumes.vol01(round(end/2),:,:));
-slice2 = squeeze(hdfdata2.CartesianVolumes.vol12(round(end/2),:,:));
+slice2 = squeeze(hdfdata2.CartesianVolumes.vol01(round(end/2),:,:));
 figure(1), subplot(2,3,2), imshow(slice1, [0 255]);
 figure(1), subplot(2,3,5), imshow(slice2, [0 255]);
 
