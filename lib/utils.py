@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+import math
 
 
 def show_dual(data, num_volumes, shape):
@@ -40,5 +41,36 @@ def show_single(data, shape, title):
         ax[0, j].set_ylim([len(middle_slice), 0])
 
     fig.suptitle(title)
+
+    plt.show()
+
+
+def feature_maps(data, title):
+    if data.shape[1] == 1:
+        fig, ax = plt.subplots(1, 1, squeeze=False, figsize=(20, 10))
+        s1 = 1
+        s2 = 1
+    elif data.shape[1] == 8:
+        fig, ax = plt.subplots(2, 4, squeeze=False, figsize=(20, 10))
+        s1 = 2
+        s2 = 4
+    elif data.shape[1] == 16:
+        fig, ax = plt.subplots(4, 4, squeeze=False, figsize=(20, 10))
+        s1 = 4
+        s2 = 4
+    elif data.shape[1] == 32:
+        fig, ax = plt.subplots(4, 8, squeeze=False, figsize=(20, 10))
+        s1 = 4
+        s2 = 8
+
+    count = 0
+    for k in range(s1):
+        for j in range(s2):
+            middle_slice = data[0, count, data.shape[2] - int((data.shape[2] / 3))]
+            ax[k, j].imshow(middle_slice, origin='left', cmap='gray')
+            ax[k, j].title.set_text('kernel ' + str(count))
+            count += 1
+
+    plt.suptitle(title)
 
     plt.show()
