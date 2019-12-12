@@ -55,6 +55,18 @@ def progress_printer(percentage):
     return printer
 
 
+def weights_init(m):
+    """Apply weight and bias initalization
+    """
+    if isinstance(m, torch.nn.Conv3d):
+        torch.nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
+        torch.nn.init.zeros_(m.bias)
+    elif isinstance(m, torch.nn.Linear):
+        torch.nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
+        if m.bias is None:
+            torch.nn.init.zeros_(m.bias)
+
+
 def generate_patches(path_to_infofile, info_filename, path_to_h5files,
                      patch_size, stride, device, voxelsize, tot_num_sets):
     """Loading all datasets, creates patches and store all patches in a single array.
@@ -159,7 +171,7 @@ def validate(fixed_patches, moving_patches, epoch, epochs, batch_size, net, crit
     """
 
     validation_set = CreateDataset(fixed_patches, moving_patches)
-    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
 
     validation_loss = torch.zeros(len(validation_loader), device=device)
 
@@ -199,7 +211,7 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
     """
 
     train_set = CreateDataset(fixed_patches, moving_patches)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True, drop_last=True)
 
     training_loss = torch.zeros(len(train_loader), device=device)  # Holding training loss over all batch_idx for one training set
 
@@ -226,12 +238,13 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
 def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to_lossfile, device, model_name, validation_set_ratio):
 
     net = Net().to(device)
+    net.apply(weights_init)
 
     criterion = NCC().to(device)
     optimizer = optim.Adam([
-			    {'params': net.stn1.parameters(), 'lr': 1e-4},
-			    {'params': net.stn2.parameters(), 'lr': 1e-4},
-			    {'params': net.stn3.parameters(), 'lr': 1e-4},
+			    {'params': net.stn1.parameters(), 'lr': 1e-3},
+			    {'params': net.stn2.parameters(), 'lr': 1e-3},
+			    {'params': net.stn3.parameters(), 'lr': 1e-3},
 			    {'params': net.sampler1.parameters()},
 			    {'params': net.sampler2.parameters()}
 			    ], lr=lr)
