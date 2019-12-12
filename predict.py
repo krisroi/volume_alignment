@@ -11,7 +11,7 @@ from lib.network import Net
 from lib.affine import affine_transform
 from lib.HDF5Image import HDF5Image
 from lib.patch_volume import create_patches
-
+from lib.ncc_loss import NCC
 
 class CreatePredictionSet(Dataset):
     """Reads fixed- and moving patches and returns them as a Dataset object for
@@ -122,7 +122,7 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         field_writer.writeheader()
 
     net = create_net(model_name, device)
-
+    criterion = NCC()
     prediction_start_time = datetime.now()
 
     patch_gen = datetime.now()
@@ -181,10 +181,10 @@ if __name__ == '__main__':
     model_name = str(sys.argv[1])  # Run predict with modelname from training as argument
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 60
-    stride = 20
+    stride = 18
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000003e-4
-    batch_size = 320
+    batch_size = 32
 
     with torch.no_grad():
         predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size)
