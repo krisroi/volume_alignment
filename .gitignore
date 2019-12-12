@@ -16,7 +16,7 @@ __pycache__/
 # Project specific
 **.DS_Store
 plot.txt
-
+/lib/network.py.save
 
 # .txt files
 
