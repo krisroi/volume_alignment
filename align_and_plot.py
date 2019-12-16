@@ -9,7 +9,7 @@ from lib.affine import affine_transform
 from lib.HDF5Image import HDF5Image
 from lib.ncc_loss import NCC
 
-def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, gray_alpha):
+def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, gray_alpha, path, filename):
 
     fig, ax = plt.subplots(2, 3, squeeze=False, figsize=(20, 6))
 
@@ -63,7 +63,10 @@ def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, 
 
     ax[1, 1].title.set_text('Predicted alignment')
 
-    plt.show()
+    if filename is not None:
+        plt.savefig('{}/{}.eps'.format(path, filename), dpi=150, format='eps', bbox_inches='tight', pad_inches=0) 
+
+    #plt.show()
 
 
 def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
@@ -99,7 +102,7 @@ def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
     print('Pre-alignment loss: {}'.format(pre_alignment_loss.item()))
     print('Post-alignment loss: {}'.format(post_alignment_loss.item()))
 
-    plot_fixed_moving(fixed_volume, moving_volume.squeeze(1), predicted_deformation.squeeze(1), copper_alpha, gray_alpha)
+    plot_fixed_moving(fixed_volume, moving_volume.squeeze(1), predicted_deformation.squeeze(1), copper_alpha, gray_alpha, None, None)
 
 
 if __name__ == '__main__':
