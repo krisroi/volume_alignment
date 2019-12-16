@@ -19,6 +19,7 @@ plot.txt
 /lib/network.py.save
 
 # .txt files
+RESULT.txt
 
 # output files
 /output/
