@@ -60,11 +60,6 @@ def weights_init(m):
     """
     if isinstance(m, torch.nn.Conv3d):
         torch.nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
-        torch.nn.init.zeros_(m.bias)
-    elif isinstance(m, torch.nn.Linear):
-        torch.nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
-        if m.bias is None:
-            torch.nn.init.zeros_(m.bias)
 
 
 def generate_patches(path_to_infofile, info_filename, path_to_h5files,
@@ -238,7 +233,7 @@ def train(fixed_patches, moving_patches, epoch, epochs, batch_size, net, criteri
 def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to_lossfile, device, model_name, validation_set_ratio):
 
     net = Net().to(device)
-    net.apply(weights_init)
+    #net.apply(weights_init)
 
     criterion = NCC().to(device)
     optimizer = optim.Adam([
@@ -303,9 +298,7 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
         epoch_train_loss[epoch] = torch.mean(training_loss)
         epoch_validation_loss[epoch] = torch.mean(validation_loss)
 
-        model_info = {'model_state_dict': net.state_dict(),
-                      'optimizer_state_dict': optimizer.state_dict(),
-                      'epoch': epoch
+        model_info = {'model_state_dict': net.state_dict()
                       }
         torch.save(model_info, model_name)
 
@@ -337,7 +330,7 @@ if __name__ == '__main__':
     epochs = 150  # number of epochs
     tot_num_sets = 25  # Total number of sets to use for training (25 max, 1 is used for prediction)
     validation_set_ratio = 0.2
-    batch_size = 32
+    batch_size = 16
     patch_size = 60
     stride = 18
     voxelsize = 7.0000003e-4
