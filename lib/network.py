@@ -36,11 +36,11 @@ class Net(nn.Module):
         )
 
         self.sampler1 = nn.Sequential(
-            nn.Conv3d(1, 32, kernel_size=5),
-            nn.BatchNorm3d(32, track_running_stats=True),
+            nn.Conv3d(1, 16, kernel_size=5),
+            nn.BatchNorm3d(16, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
-            nn.Conv3d(32, 32, kernel_size=5),
+            nn.Conv3d(16, 32, kernel_size=5),
             nn.BatchNorm3d(32, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2)
@@ -66,15 +66,15 @@ class Net(nn.Module):
         )
 
         self.stn3 = nn.Sequential(
-            nn.Conv3d(64, 64, kernel_size=3),
-            nn.BatchNorm3d(64, track_running_stats=True),
+            nn.Conv3d(64, 128, kernel_size=3),
+            nn.BatchNorm3d(128, track_running_stats=True),
             nn.ReLU(True),
             nn.MaxPool3d(2, stride=2),
             nn.Flatten(),
-            nn.Linear(64 * 1 * 1 * 1, 16),
-            nn.BatchNorm1d(16, track_running_stats=True),
+            nn.Linear(128 * 1 * 1 * 1, 64),
+            nn.BatchNorm1d(64, track_running_stats=True),
             nn.ReLU(True),
-            nn.Linear(16, 3 * 4)
+            nn.Linear(64, 3 * 4)
         )
 
         # Initialize the weights/bias with identity transformation
