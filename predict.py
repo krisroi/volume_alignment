@@ -13,6 +13,8 @@ from lib.HDF5Image import HDF5Image
 from lib.patch_volume import create_patches
 from lib.ncc_loss import NCC
 
+from align_and_plot import plot_fixed_moving
+
 class CreatePredictionSet(Dataset):
     """Reads fixed- and moving patches and returns them as a Dataset object for
         use with Pytorch's handy DataLoader.
@@ -87,11 +89,11 @@ def create_net(model_name, device):
             model_name (string): absolute path to model
             device (torch.device): device to load model on
     """
-    net = Net().to(device)
+    net = Net()
 
     print('Loading weights ...')
-    model = torch.load(model_name)
-    net.load_state_dict(model['model_state_dict'])
+    net.load_state_dict(torch.load(model_name)['model_state_dict'])
+    net.to(device)
 
     return net.eval()
 
@@ -142,8 +144,8 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 
     print('Predicting')
 
-    predicted_theta_tmp = torch.zeros([1, batch_size, 12]).type(dtype).to(device)
-    loc_tmp = torch.zeros([1, batch_size, 3]).type(dtype).to(device)
+    predicted_theta_tmp = torch.zeros([1, 15, 12]).type(dtype).to(device)
+    loc_tmp = torch.zeros([1, 15, 3]).type(dtype).to(device)
 
     for batch_idx, (fixed_batch, moving_batch, loc) in enumerate(prediction_loader):
 
@@ -153,6 +155,13 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         net_rt = datetime.now()
         predicted_theta = net(moving_batch)
         print('Net runtime: ', datetime.now() - net_rt)
+
+
+        #Plotting patch alignment
+        predicted_deformation = affine_transform(moving_batch, predicted_theta)
+        for idx in range(predicted_deformation.shape[0]):
+            plot_fixed_moving(fixed_batch[idx,:].cpu(), moving_batch[idx,:].cpu(), predicted_deformation[idx,:].cpu(), 0.8, 0.7,
+                              'results/patch_alignment', idx)
 
         predicted_theta = predicted_theta.view(-1, 12)
 
@@ -173,17 +182,21 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
 if __name__ == '__main__':
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.functional")
 
-    model_name = str(sys.argv[1])  # Run predict with modelname from training as argument
+    try:
+        model_name = str(sys.argv[1])  # Run predict with modelname from training as argument
+    except:
+        sys.exit('ArgumentError: Required model_name argument missing.')
+
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 60
-    stride = 18
+    stride = 60
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    voxelsize = 7.0000003e-4
+    voxelsize = 7.0000000e-4
     batch_size = 32
 
     with torch.no_grad():
