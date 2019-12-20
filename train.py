@@ -243,7 +243,8 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
 			    {'params': net.sampler1.parameters()},
 			    {'params': net.sampler2.parameters()}
 			    ], lr=lr)
-    #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5)
+
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 70, 90], gamma=0.5)
 
     fixed_training_patches = fixed_patches[0:math.floor(fixed_patches.shape[0] * (1 - validation_set_ratio)), :]
     moving_training_patches = moving_patches[0:math.floor(moving_patches.shape[0] * (1 - validation_set_ratio)), :]
@@ -293,7 +294,7 @@ def train_network(fixed_patches, moving_patches, epochs, lr, batch_size, path_to
                                        device
                                        )
 
-        # scheduler.step()
+        scheduler.step()
 
         epoch_train_loss[epoch] = torch.mean(training_loss)
         epoch_validation_loss[epoch] = torch.mean(validation_loss)
@@ -343,9 +344,7 @@ if __name__ == '__main__':
     time = now.strftime('%H%M%S')
 
     model_name = 'output/models/model_latest_GPURUN.pt'
-    #model_name = 'output/models/model_{}_{}.pt'.format(date, time)
     path_to_lossfile = 'output/txtfiles/loss_latest_GPURUN.csv'
-    #path_to_lossfile = 'output/txtfiles/avg_loss_{}_epochs_{}_{}.csv'.format(epochs, date, time)
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     path_to_infofile = '/mnt/EncryptedFastData/krisroi/'

@@ -156,12 +156,21 @@ def predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, 
         predicted_theta = net(moving_batch)
         print('Net runtime: ', datetime.now() - net_rt)
 
-
         #Plotting patch alignment
         predicted_deformation = affine_transform(moving_batch, predicted_theta)
         for idx in range(predicted_deformation.shape[0]):
-            plot_fixed_moving(fixed_batch[idx,:].cpu(), moving_batch[idx,:].cpu(), predicted_deformation[idx,:].cpu(), 0.8, 0.7,
-                              'results/patch_alignment', idx)
+            #plot_fixed_moving(fixed_batch[idx,:].cpu(), moving_batch[idx,:].cpu(), predicted_deformation[idx,:].cpu(), 1.0, 0.6,
+            #                  'results/patch_alignment', idx)
+
+            #Print per-patch loss
+            print('Patch no. {} loss pre-alignment: '.format(idx),
+                    1-criterion(fixed_batch[idx].unsqueeze(0), moving_batch[idx].unsqueeze(0), reduction='mean'))
+            print('Patch no. {} loss post-alignment: '.format(idx),
+                    1-criterion(fixed_batch[idx].unsqueeze(0), predicted_deformation[idx].unsqueeze(0), reduction='mean'))
+
+        #Print average patch losses
+        print('Patch loss pre-alignment: ', 1-criterion(fixed_batch, moving_batch, reduction='mean'))
+        print('Patch loss post-alignment: ', 1-criterion(fixed_batch, predicted_deformation, reduction='mean'))
 
         predicted_theta = predicted_theta.view(-1, 12)
 
@@ -194,10 +203,10 @@ if __name__ == '__main__':
 
     path_to_h5files = '/mnt/EncryptedFastData/krisroi/patient_data_proc/'
     patch_size = 60
-    stride = 60
+    stride = 20
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     voxelsize = 7.0000000e-4
-    batch_size = 32
+    batch_size = 16
 
     with torch.no_grad():
         predict(path_to_h5files, patch_size, stride, device, voxelsize, model_name, batch_size)
