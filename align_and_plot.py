@@ -10,12 +10,19 @@ from lib.HDF5Image import HDF5Image
 from lib.ncc_loss import NCC
 
 def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, gray_alpha, path, filename):
+    """Plotting fixed volume and moving volume pre- and post-alignment
+       Args:
+           fixed_volume (Tensor): Tensor containing the fixed volume
+           moving_volume (Tensor): Tensor containing the moving volume pre-alignment
+           warped_volume (Tensor): Tensor containing the warped moving volume
+           copper_alpha (float): Determines the opacity of the fixed volume, limited to [0,1]
+           gray_alpha (float): Determines the opacity of the moving volume, limited to [0,1]
+           path (string, optional): Filepath to save figure, pass None to avoid saving
+           filename (string, optional): Filename for the figure, pass None to avoid saving
+    """
+
 
     fig, ax = plt.subplots(2, 3, squeeze=False, figsize=(20, 6))
-
-    #warped_xvolume = torch.flip(warped_volume, [1])
-    #warped_yvolume = torch.flip(warped_volume, [2])
-    #warped_zvolume = torch.flip(warped_volume, [3])
 
     fixed_xslice = fixed_volume[0, int(fixed_volume.shape[1] / 2)]
     warped_xslice = warped_volume[0, int(warped_volume.shape[1] / 2)]
@@ -64,15 +71,24 @@ def plot_fixed_moving(fixed_volume, moving_volume, warped_volume, copper_alpha, 
     ax[1, 1].title.set_text('Predicted alignment')
 
     if filename is not None:
-        plt.savefig('{}/{}.eps'.format(path, filename), dpi=150, format='eps', bbox_inches='tight', pad_inches=0) 
+        plt.savefig('{}/{}.png'.format(path, filename), dpi=225, format='png', bbox_inches='tight', pad_inches=0)
 
-    #plt.show()
+    plt.show()
 
 
 def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
+    """Read and apply global theta to moving image and plot results
+        Args:
+            theta_file (.csv textfile): textfile containing global theta
+            path_to_h5files (string): path to .h5 files
+            copper_alpha (float): opacity of fixed image, confined to [0,1]
+            gray_alpha (float): opacity of moving image, confined to [0,1]
+    """
+
 
     global_theta = torch.zeros([12])
 
+    #Read global theta file from Procrustes analysis
     with open(theta_file, 'r') as f:
         for i, theta in enumerate(f.read().split()):
             if theta != '1' and theta != '0':
@@ -102,7 +118,8 @@ def align_and_plot(theta_file, path_to_h5files, copper_alpha, gray_alpha):
     print('Pre-alignment loss: {}'.format(pre_alignment_loss.item()))
     print('Post-alignment loss: {}'.format(post_alignment_loss.item()))
 
-    plot_fixed_moving(fixed_volume, moving_volume.squeeze(1), predicted_deformation.squeeze(1), copper_alpha, gray_alpha, None, None)
+    plot_fixed_moving(fixed_volume, moving_volume.squeeze(1), predicted_deformation.squeeze(1),
+            copper_alpha, gray_alpha, 'results/full_alignment/', 'fixed_moving_aligned')
 
 
 if __name__ == '__main__':
